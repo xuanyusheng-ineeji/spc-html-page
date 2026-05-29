@@ -135,12 +135,18 @@ code{background:#f0f4f8;padding:1px 5px;border-radius:3px;font-size:12px;color:#
   }
 
   // ── 예측 표시 ────────────────────────────────────────────
+  function _localDateStr(d) {
+    var mm = String(d.getMonth() + 1).padStart(2, '0');
+    var dd = String(d.getDate()).padStart(2, '0');
+    return d.getFullYear() + '-' + mm + '-' + dd;
+  }
+
   function _showForecast(baseDate, preds) {
     var dates = [], customdata = [];
     var d = new Date(baseDate + 'T00:00:00');
     for (var i = 0; i < 30; i++) {
       d = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1);
-      dates.push(d.toISOString().split('T')[0]);
+      dates.push(_localDateStr(d));
       customdata.push([i + 1]);
     }
     Plotly.restyle(gd, {
