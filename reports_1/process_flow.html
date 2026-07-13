@@ -1,0 +1,387 @@
+<title>오리히로 2호기 — 충전 품목 공정 흐름도</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  background: #EEF0F4;
+  color: #1C2027;
+  min-height: 100vh;
+  padding: 36px 24px 60px;
+}
+
+.page-header {
+  max-width: 1100px;
+  margin: 0 auto 32px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+
+.page-title {
+  font-size: 1.35rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: #1C2027;
+  line-height: 1.2;
+}
+
+.page-subtitle {
+  font-size: 0.8rem;
+  color: #6B7585;
+  margin-top: 4px;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.legend {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.72rem;
+  color: #4A5261;
+  letter-spacing: 0.02em;
+}
+
+.legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+/* Process color tokens */
+.c-weigh   { background: #3E7CB1; }
+.c-mix     { background: #4E8C70; }
+.c-fill-o  { background: #C94A12; }  /* Orihiro 2 — the accent */
+.c-fill-d  { background: #7A6A9E; }  /* DS Mixer */
+.c-fill-h  { background: #8A7A5A; }  /* HPP 전 충전 */
+.c-hpp     { background: #1A7A8A; }
+.c-pack    { background: #5A6A7A; }
+
+.main { max-width: 1100px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
+
+.group-label {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #8A92A0;
+  padding: 0 2px;
+  margin-bottom: -8px;
+}
+
+.product-row {
+  background: #FFFFFF;
+  border-radius: 8px;
+  border: 1px solid #DDE1E8;
+  display: grid;
+  grid-template-columns: 200px 1fr;
+  align-items: center;
+  min-height: 64px;
+  overflow: hidden;
+}
+
+.product-info {
+  padding: 14px 16px;
+  border-right: 1px solid #E8EBF0;
+}
+
+.product-code {
+  font-family: "SF Mono", "Consolas", "Liberation Mono", monospace;
+  font-size: 0.68rem;
+  color: #8A92A0;
+  letter-spacing: 0.04em;
+}
+
+.product-name {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #1C2027;
+  margin-top: 2px;
+  line-height: 1.3;
+}
+
+.product-name.missing {
+  color: #A0A8B8;
+  font-style: italic;
+  font-weight: 400;
+}
+
+.flow {
+  padding: 14px 20px;
+  display: flex;
+  align-items: center;
+  gap: 0;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  flex-shrink: 0;
+}
+
+.step-pill {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  border-radius: 5px;
+  padding: 6px 12px;
+  min-width: 90px;
+  position: relative;
+}
+
+.step-pill .step-code {
+  font-family: "SF Mono", "Consolas", "Liberation Mono", monospace;
+  font-size: 0.6rem;
+  letter-spacing: 0.06em;
+  opacity: 0.75;
+  color: inherit;
+}
+
+.step-pill .step-name {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: inherit;
+  white-space: nowrap;
+}
+
+.step-pill .step-doc {
+  font-family: "SF Mono", "Consolas", "Liberation Mono", monospace;
+  font-size: 0.58rem;
+  opacity: 0.65;
+  color: inherit;
+  white-space: nowrap;
+}
+
+/* Step type styles */
+.step-pill.weigh  { background: #EAF2FB; color: #2A5F8A; }
+.step-pill.mix    { background: #E8F4ED; color: #2D6E50; }
+.step-pill.fill-o { background: #FDF0EB; color: #9A2E05; border: 2px solid #C94A12; }
+.step-pill.fill-d { background: #F0EDF8; color: #4A3A7A; }
+.step-pill.fill-h { background: #F3EFE6; color: #5A4A2A; }
+.step-pill.hpp    { background: #E6F4F6; color: #0F5A68; }
+.step-pill.pack   { background: #EDEEF2; color: #3A4555; }
+.step-pill.none   { background: #F5F6F8; color: #A0A8B8; border: 1px dashed #C8CDD8; }
+
+.arrow {
+  width: 28px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #B8C0CC;
+  font-size: 1rem;
+  padding: 0 2px;
+}
+
+.orihiro-badge {
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  background: #C94A12;
+  color: white;
+  border-radius: 3px;
+  padding: 1px 5px;
+  margin-top: 3px;
+  text-transform: uppercase;
+}
+
+.missing-note {
+  font-size: 0.72rem;
+  color: #A0A8B8;
+  padding: 0 4px;
+  font-style: italic;
+}
+
+.divider {
+  height: 1px;
+  background: #DDE1E8;
+  max-width: 1100px;
+  margin: 4px auto -4px;
+  opacity: 0.5;
+}
+</style>
+
+<div class="page-header">
+  <div>
+    <div class="page-title">오리히로 2호기 — 충전 품목 공정 흐름도</div>
+    <div class="page-subtitle">DOC_TP=D005002134 (크림 자동2 충전일지) &nbsp;·&nbsp; 10개 품목</div>
+  </div>
+  <div class="legend">
+    <div class="legend-item"><span class="legend-dot c-weigh"></span>계량(내용물)</div>
+    <div class="legend-item"><span class="legend-dot c-fill-o" style="outline:2px solid #C94A12;outline-offset:1px;border-radius:2px;"></span>충전 — 오리히로2</div>
+    <div class="legend-item"><span class="legend-dot c-pack"></span>포장(내용물)</div>
+  </div>
+</div>
+
+<div class="main">
+
+  <!-- Orihiro 2 products -->
+  <div class="group-label">오리히로2 충전 품목 — 10개 (DOC_TP D005002134 · P5050 충전공정)</div>
+
+  <!-- 284023 -->
+  <div class="product-row">
+    <div class="product-info">
+      <div class="product-code">284023</div>
+      <div class="product-name">연유크림</div>
+    </div>
+    <div class="flow">
+      <div class="step"><div class="step-pill weigh"><span class="step-code">P1050 · Step 10</span><span class="step-name">계량(내용물)</span><span class="step-doc">D005002115</span></div></div>
+      <div class="arrow">→</div>
+      <div class="step"><div class="step-pill fill-o"><span class="step-code">P5050 · Step 30</span><span class="step-name">충전(내용물)</span><span class="step-doc">D005002134</span></div><div class="orihiro-badge">오리히로2</div></div>
+      <div class="arrow">→</div>
+      <div class="step"><div class="step-pill pack"><span class="step-code">P6040 · Step 40</span><span class="step-name">포장(내용물)</span><span class="step-doc">D005002220</span></div></div>
+    </div>
+  </div>
+
+  <!-- 284047 -->
+  <div class="product-row">
+    <div class="product-info">
+      <div class="product-code">284047</div>
+      <div class="product-name">연유토핑물</div>
+    </div>
+    <div class="flow">
+      <div class="step"><div class="step-pill weigh"><span class="step-code">P1050 · Step 10</span><span class="step-name">계량(내용물)</span><span class="step-doc">D005002115</span></div></div>
+      <div class="arrow">→</div>
+      <div class="step"><div class="step-pill fill-o"><span class="step-code">P5050 · Step 30</span><span class="step-name">충전(내용물)</span><span class="step-doc">D005002134</span></div><div class="orihiro-badge">오리히로2</div></div>
+      <div class="arrow">→</div>
+      <div class="step"><div class="step-pill pack"><span class="step-code">P6040 · Step 40</span><span class="step-name">포장(내용물)</span><span class="step-doc">D005002220</span></div></div>
+    </div>
+  </div>
+
+  <!-- 284059 -->
+  <div class="product-row">
+    <div class="product-info">
+      <div class="product-code">284059</div>
+      <div class="product-name">[수출] 뉴아몬드크림</div>
+    </div>
+    <div class="flow">
+      <div class="step"><div class="step-pill weigh"><span class="step-code">P1050 · Step 10</span><span class="step-name">계량(내용물)</span><span class="step-doc">D005002115</span></div></div>
+      <div class="arrow">→</div>
+      <div class="step"><div class="step-pill fill-o"><span class="step-code">P5050 · Step 30</span><span class="step-name">충전(내용물)</span><span class="step-doc">D005002134</span></div><div class="orihiro-badge">오리히로2</div></div>
+      <div class="arrow">→</div>
+      <div class="step"><div class="step-pill pack"><span class="step-code">P6040 · Step 40</span><span class="step-name">포장(내용물)</span><span class="step-doc">D005002220</span></div></div>
+    </div>
+  </div>
+
+  <!-- 284535 -->
+  <div class="product-row">
+    <div class="product-info">
+      <div class="product-code">284535</div>
+      <div class="product-name">[수출] 마늘토핑</div>
+    </div>
+    <div class="flow">
+      <div class="step"><div class="step-pill weigh"><span class="step-code">P1050 · Step 10</span><span class="step-name">계량(내용물)</span><span class="step-doc">D005002115</span></div></div>
+      <div class="arrow">→</div>
+      <div class="step"><div class="step-pill fill-o"><span class="step-code">P5050 · Step 30</span><span class="step-name">충전(내용물)</span><span class="step-doc">D005002134</span></div><div class="orihiro-badge">오리히로2</div></div>
+      <div class="arrow">→</div>
+      <div class="step"><div class="step-pill pack"><span class="step-code">P6040 · Step 40</span><span class="step-name">포장(내용물)</span><span class="step-doc">D005002220</span></div></div>
+    </div>
+  </div>
+
+  <!-- 284760 -->
+  <div class="product-row">
+    <div class="product-info">
+      <div class="product-code">284760</div>
+      <div class="product-name">[수출] 캄보디아 연유크림</div>
+    </div>
+    <div class="flow">
+      <div class="step"><div class="step-pill weigh"><span class="step-code">P1050 · Step 10</span><span class="step-name">계량(내용물)</span><span class="step-doc">D005002115</span></div></div>
+      <div class="arrow">→</div>
+      <div class="step"><div class="step-pill fill-o"><span class="step-code">P5050 · Step 20</span><span class="step-name">충전(내용물)</span><span class="step-doc">D005002134</span></div><div class="orihiro-badge">오리히로2</div></div>
+      <div class="arrow">→</div>
+      <div class="step"><div class="step-pill pack"><span class="step-code">P6040 · Step 30</span><span class="step-name">포장(내용물)</span><span class="step-doc">D005002220</span></div></div>
+    </div>
+  </div>
+
+  <!-- 284961 -->
+  <div class="product-row">
+    <div class="product-info">
+      <div class="product-code">284961</div>
+      <div class="product-name">[수출] 베트남 연유크림</div>
+    </div>
+    <div class="flow">
+      <div class="step"><div class="step-pill weigh"><span class="step-code">P1050 · Step 10</span><span class="step-name">계량(내용물)</span><span class="step-doc">D005002115</span></div></div>
+      <div class="arrow">→</div>
+      <div class="step"><div class="step-pill fill-o"><span class="step-code">P5050 · Step 20</span><span class="step-name">충전(내용물)</span><span class="step-doc">D005002134</span></div><div class="orihiro-badge">오리히로2</div></div>
+      <div class="arrow">→</div>
+      <div class="step"><div class="step-pill pack"><span class="step-code">P6040 · Step 30</span><span class="step-name">포장(내용물)</span><span class="step-doc">D005002220</span></div></div>
+    </div>
+  </div>
+
+  <!-- 285101 -->
+  <div class="product-row">
+    <div class="product-info">
+      <div class="product-code">285101</div>
+      <div class="product-name">BK) 냉아몬드크림 300g</div>
+    </div>
+    <div class="flow">
+      <div class="step"><div class="step-pill weigh"><span class="step-code">P1050 · Step 10</span><span class="step-name">계량(내용물)</span><span class="step-doc">D005002115</span></div></div>
+      <div class="arrow">→</div>
+      <div class="step"><div class="step-pill fill-o"><span class="step-code">P5050 · Step 30</span><span class="step-name">충전(내용물)</span><span class="step-doc">D005002134</span></div><div class="orihiro-badge">오리히로2</div></div>
+      <div class="arrow">→</div>
+      <div class="step"><div class="step-pill pack"><span class="step-code">P6040 · Step 40</span><span class="step-name">포장(내용물)</span><span class="step-doc">D005002220</span></div></div>
+    </div>
+  </div>
+
+  <!-- 285102 -->
+  <div class="product-row">
+    <div class="product-info">
+      <div class="product-code">285102</div>
+      <div class="product-name">BK) 냉커피번토핑물 300g</div>
+    </div>
+    <div class="flow">
+      <div class="step"><div class="step-pill weigh"><span class="step-code">P1050 · Step 10</span><span class="step-name">계량(내용물)</span><span class="step-doc">D005002115</span></div></div>
+      <div class="arrow">→</div>
+      <div class="step"><div class="step-pill fill-o"><span class="step-code">P5050 · Step 30</span><span class="step-name">충전(내용물)</span><span class="step-doc">D005002134</span></div><div class="orihiro-badge">오리히로2</div></div>
+      <div class="arrow">→</div>
+      <div class="step"><div class="step-pill pack"><span class="step-code">P6040 · Step 40</span><span class="step-name">포장(내용물)</span><span class="step-doc">D005002220</span></div></div>
+    </div>
+  </div>
+
+  <!-- 285103 -->
+  <div class="product-row">
+    <div class="product-info">
+      <div class="product-code">285103</div>
+      <div class="product-name">BK) 마늘크림믹스F 300g</div>
+    </div>
+    <div class="flow">
+      <div class="step"><div class="step-pill weigh"><span class="step-code">P1050 · Step 10</span><span class="step-name">계량(내용물)</span><span class="step-doc">D005002115</span></div></div>
+      <div class="arrow">→</div>
+      <div class="step"><div class="step-pill fill-o"><span class="step-code">P5050 · Step 30</span><span class="step-name">충전(내용물)</span><span class="step-doc">D005002134</span></div><div class="orihiro-badge">오리히로2</div></div>
+      <div class="arrow">→</div>
+      <div class="step"><div class="step-pill pack"><span class="step-code">P6040 · Step 40</span><span class="step-name">포장(내용물)</span><span class="step-doc">D005002220</span></div></div>
+    </div>
+  </div>
+
+  <!-- 285104 -->
+  <div class="product-row">
+    <div class="product-info">
+      <div class="product-code">285104</div>
+      <div class="product-name">BK) 연유크림F 300g</div>
+    </div>
+    <div class="flow">
+      <div class="step"><div class="step-pill weigh"><span class="step-code">P1050 · Step 10</span><span class="step-name">계량(내용물)</span><span class="step-doc">D005002115</span></div></div>
+      <div class="arrow">→</div>
+      <div class="step"><div class="step-pill fill-o"><span class="step-code">P5050 · Step 30</span><span class="step-name">충전(내용물)</span><span class="step-doc">D005002134</span></div><div class="orihiro-badge">오리히로2</div></div>
+      <div class="arrow">→</div>
+      <div class="step"><div class="step-pill pack"><span class="step-code">P6040 · Step 40</span><span class="step-name">포장(내용물)</span><span class="step-doc">D005002220</span></div></div>
+    </div>
+  </div>
+
+</div>
