@@ -1,0 +1,504 @@
+﻿<title>작업자 작업 성과 분석 · Operator Performance</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#EEF1F8;--surface:#fff;--border:#D2D9E8;
+  --t1:#1A2035;--t2:#5A6685;--t3:#9BA8BE;
+  --a:#2E60DC;--p:#1A9E6C;--w:#C8870A;--f:#D43B3B;
+  --r:6px;
+}
+body{background:var(--bg);color:var(--t1);font-family:system-ui,-apple-system,sans-serif;font-size:14px;line-height:1.5;min-height:100vh}
+#app{max-width:1200px;margin:0 auto;padding:0 20px 48px}
+header{padding:22px 0 14px;border-bottom:1px solid var(--border);margin-bottom:18px;display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:8px}
+header h1{font-size:19px;font-weight:700;letter-spacing:-.01em}
+header p{font-size:11px;color:var(--t3);letter-spacing:.06em;text-transform:uppercase}
+.badge{font-size:10px;font-weight:600;padding:3px 8px;border-radius:3px;letter-spacing:.04em;background:#EBF2FF;color:#2E60DC}
+.badge.wrk{background:#E8F5F0;color:#1A7A58}
+.src-badges{display:flex;gap:6px}
+
+/* KPI row */
+#kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:18px}
+.kpi{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:14px 16px;position:relative;overflow:hidden}
+.kpi::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--kc,var(--a))}
+.kpi-label{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--t3);margin-bottom:6px;font-weight:600}
+.kpi-value{font-size:26px;font-weight:700;line-height:1;font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.kpi-sub{font-size:11px;color:var(--t3);margin-top:5px;font-variant-numeric:tabular-nums}
+
+/* operator list */
+#op-list{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:18px}
+.op-btn{display:flex;align-items:center;gap:6px;padding:5px 11px;border:1px solid var(--border);border-radius:var(--r);background:var(--surface);cursor:pointer;transition:all .12s;color:var(--t2);font-size:12px;font-weight:500;font-variant-numeric:tabular-nums}
+.op-btn:hover{border-color:var(--a);color:var(--a)}
+.op-btn.active{background:var(--a);border-color:var(--a);color:#fff}
+.op-btn.active .opbadge{background:rgba(255,255,255,.22);color:#fff}
+.opbadge{font-size:10px;font-weight:600;padding:2px 5px;border-radius:2px;font-variant-numeric:tabular-nums}
+.opbadge.good{background:#D6F5E8;color:#16854E}
+.opbadge.warn{background:#FEF3C7;color:#A16207}
+.opbadge.fail{background:#FEE2E2;color:#B91C1C}
+
+/* 3-column chart layout */
+.chart-grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:12px}
+.chart-grid-2{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-bottom:12px}
+.chart-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:16px 16px 10px}
+.chart-card.full{grid-column:1/-1}
+.chart-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;gap:8px;flex-wrap:wrap}
+.chart-title{font-size:13px;font-weight:600;letter-spacing:.01em;display:flex;align-items:center;gap:6px}
+.chart-src{font-size:9px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:2px 5px;border-radius:2px}
+.chart-src.wrk{background:#E8F5F0;color:#1A7A58}
+.legend{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.li{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--t2)}
+.ll{width:18px;height:2px;border-radius:1px;display:inline-block}
+canvas{display:block;width:100%;cursor:crosshair}
+.cv-rank{height:340px}
+.cv-scatter{height:260px}
+.cv-heat{height:280px}
+.cv-dist{height:220px}
+
+/* highlight row & tooltip */
+#tip{position:fixed;display:none;background:#1A2035;color:#E6ECF8;border-radius:5px;padding:10px 13px;font-size:12px;pointer-events:none;z-index:9999;box-shadow:0 4px 18px rgba(0,0,0,.28);min-width:145px}
+.tip-date{font-weight:600;margin-bottom:6px;color:#8FA0C0;font-size:10px;letter-spacing:.07em;text-transform:uppercase}
+.tip-row{display:flex;justify-content:space-between;gap:12px;align-items:center;padding:2px 0}
+.tip-dot{width:8px;height:8px;border-radius:2px;flex-shrink:0}
+.tip-div{border-top:1px solid rgba(255,255,255,.1);margin:5px 0}
+.stat-label{font-weight:600;color:var(--t3);font-size:11px;margin-bottom:2px}
+.stat-val{font-size:22px;font-weight:700;font-variant-numeric:tabular-nums}
+
+@media(max-width:800px){
+  .chart-grid-3{grid-template-columns:1fr}
+  .chart-grid-2{grid-template-columns:1fr}
+  #kpis{grid-template-columns:repeat(2,1fr)}
+  .kpi-value{font-size:22px}
+}
+</style>
+
+<div id="app">
+  <header>
+    <div>
+      <h1>작업자 작업 성과 분석</h1>
+      <p>Operator Performance · Weight QC · 1,050 orders · 21 operators</p>
+    </div>
+    <div class="src-badges">
+      <span class="badge">RAWDATA</span>
+      <span class="badge wrk">WORKER</span>
+    </div>
+  </header>
+
+  <section id="kpis">
+    <div class="kpi" style="--kc:#1A9E6C">
+      <div class="kpi-label">최고 합격률</div>
+      <div class="kpi-value" id="kv-best">—</div>
+      <div class="kpi-sub" id="ks-best">&nbsp;</div>
+    </div>
+    <div class="kpi" style="--kc:#D43B3B">
+      <div class="kpi-label">최저 합격률</div>
+      <div class="kpi-value" id="kv-worst">—</div>
+      <div class="kpi-sub" id="ks-worst">&nbsp;</div>
+    </div>
+    <div class="kpi" style="--kc:#2E60DC">
+      <div class="kpi-label">가장 안정적인 작업자</div>
+      <div class="kpi-value" id="kv-stable">—</div>
+      <div class="kpi-sub" id="ks-stable">합격률 표준편차 최소</div>
+    </div>
+    <div class="kpi" style="--kc:#C8870A">
+      <div class="kpi-label">최다 주문 건수</div>
+      <div class="kpi-value" id="kv-busy">—</div>
+      <div class="kpi-sub" id="ks-busy">&nbsp;</div>
+    </div>
+  </section>
+
+  <div id="op-list"></div>
+
+  <!-- Row 1: Ranking bar + scatter -->
+  <div class="chart-grid-2" style="margin-bottom:12px">
+    <div class="chart-card">
+      <div class="chart-hdr">
+        <span class="chart-title"><span class="chart-src wrk">WORKER</span>합격률 순위（평균 ± σ）</span>
+        <div class="legend">
+          <span class="li"><span class="ll" style="background:#1A9E6C"></span>평균</span>
+          <span class="li" style="color:#9BA8BE">│ ±σ 구간</span>
+        </div>
+      </div>
+      <canvas id="cvRank" class="cv-rank"></canvas>
+    </div>
+    <div class="chart-card">
+      <div class="chart-hdr">
+        <span class="chart-title"><span class="chart-src wrk">WORKER</span>품질 vs 작업효율（산점도）</span>
+        <div class="legend">
+          <span class="li" style="font-size:10px;color:#9BA8BE">버블 크기 = 주문 건수, 색상 = 합격률</span>
+        </div>
+      </div>
+      <canvas id="cvScatter" class="cv-scatter"></canvas>
+    </div>
+  </div>
+
+  <!-- Row 2: Heatmap full width -->
+  <div class="chart-grid-2" style="margin-bottom:0">
+    <div class="chart-card full">
+      <div class="chart-hdr">
+        <span class="chart-title"><span class="chart-src wrk">WORKER</span>작업자 × 제품 합격률 히트맵</span>
+        <div class="legend">
+          <span class="li"><span class="ll" style="background:#1A9E6C;width:14px;height:14px;border-radius:3px"></span>&gt;96%</span>
+          <span class="li"><span class="ll" style="background:#C8870A;width:14px;height:14px;border-radius:3px"></span>90-96%</span>
+          <span class="li"><span class="ll" style="background:#D43B3B;width:14px;height:14px;border-radius:3px"></span>&lt;90%</span>
+          <span class="li"><span class="ll" style="background:#D2D9E8;width:14px;height:14px;border-radius:3px"></span>데이터 없음</span>
+        </div>
+      </div>
+      <canvas id="cvHeat" class="cv-heat"></canvas>
+    </div>
+  </div>
+</div>
+
+<div id="tip"></div>
+
+<script>
+const DATA = {"38606166":{"order_cnt":83,"avg_pass":94.1,"std_pass":3.58,"avg_overfill":3.33,"std_overfill":3.12,"avg_work_time":375.8,"items":["284023","284047","284059","285101","285102","285104"],"item_stats":{"284023":{"avg_pass":95.67,"avg_ovf":2.72,"cnt":49},"284047":{"avg_pass":93.68,"avg_ovf":3.06,"cnt":19},"285104":{"avg_pass":88.36,"avg_ovf":2.92,"cnt":2},"285101":{"avg_pass":88.9,"avg_ovf":2.56,"cnt":1},"285102":{"avg_pass":92.53,"avg_ovf":4.02,"cnt":1},"284059":{"avg_pass":89.49,"avg_ovf":6.53,"cnt":11}},"scatter":[{"pass":96.4,"ovf":2.7,"item":"284023","date":"2025-05-11"},{"pass":95.4,"ovf":2.2,"item":"284023","date":"2025-05-12"},{"pass":93.5,"ovf":2.7,"item":"284047","date":"2025-05-01"},{"pass":87.6,"ovf":2.9,"item":"285104","date":"2025-05-01"},{"pass":88.9,"ovf":2.6,"item":"285101","date":"2025-05-01"},{"pass":92.5,"ovf":4.0,"item":"285102","date":"2025-05-01"},{"pass":97.1,"ovf":2.8,"item":"284023","date":"2025-05-08"},{"pass":97.9,"ovf":3.1,"item":"284023","date":"2025-05-17"},{"pass":97.3,"ovf":2.8,"item":"284023","date":"2025-05-15"},{"pass":95.5,"ovf":2.7,"item":"284023","date":"2025-06-04"},{"pass":94.6,"ovf":2.4,"item":"284023","date":"2025-06-08"},{"pass":93.3,"ovf":2.4,"item":"284047","date":"2025-06-12"},{"pass":89.7,"ovf":4.4,"item":"284059","date":"2025-06-12"},{"pass":94.8,"ovf":2.3,"item":"284023","date":"2025-06-13"},{"pass":95.4,"ovf":2.3,"item":"284047","date":"2025-06-19"},{"pass":90.9,"ovf":30.3,"item":"284059","date":"2025-06-19"},{"pass":95.7,"ovf":2.2,"item":"284047","date":"2025-06-25"},{"pass":89.1,"ovf":null,"item":"285104","date":"2025-06-25"},{"pass":93.9,"ovf":2.6,"item":"284023","date":"2025-07-02"},{"pass":93.8,"ovf":2.3,"item":"284023","date":"2025-07-30"},{"pass":93.1,"ovf":2.2,"item":"284023","date":"2025-08-03"},{"pass":94.3,"ovf":2.3,"item":"284023","date":"2025-07-09"},{"pass":95.1,"ovf":2.6,"item":"284047","date":"2025-07-21"},{"pass":90.3,"ovf":3.7,"item":"284059","date":"2025-07-21"},{"pass":89.2,"ovf":4.1,"item":"284059","date":"2025-08-15"},{"pass":88.1,"ovf":2.6,"item":"284023","date":"2025-08-07"},{"pass":89.4,"ovf":1.6,"item":"284047","date":"2025-08-21"},{"pass":86.5,"ovf":4.7,"item":"284059","date":"2025-08-21"},{"pass":92.5,"ovf":2.8,"item":"284047","date":"2025-08-28"},{"pass":89.7,"ovf":2.2,"item":"284047","date":"2025-09-18"},{"pass":94.7,"ovf":4.1,"item":"284059","date":"2025-09-18"},{"pass":93.7,"ovf":2.8,"item":"284047","date":"2025-08-31"},{"pass":96.0,"ovf":2.8,"item":"284023","date":"2025-08-31"},{"pass":95.8,"ovf":2.8,"item":"284023","date":"2025-09-04"},{"pass":95.2,"ovf":2.1,"item":"284023","date":"2025-10-21"},{"pass":96.2,"ovf":2.5,"item":"284023","date":"2025-09-24"},{"pass":95.7,"ovf":1.9,"item":"284023","date":"2025-10-01"},{"pass":95.9,"ovf":2.8,"item":"284023","date":"2025-11-21"},{"pass":95.9,"ovf":3.0,"item":"284023","date":"2025-11-19"},{"pass":95.0,"ovf":2.5,"item":"284023","date":"2025-10-27"},{"pass":94.3,"ovf":2.2,"item":"284023","date":"2025-10-30"},{"pass":93.3,"ovf":2.3,"item":"284047","date":"2025-11-05"},{"pass":86.4,"ovf":4.0,"item":"284059","date":"2025-11-05"},{"pass":95.7,"ovf":3.0,"item":"284047","date":"2025-11-06"},{"pass":87.9,"ovf":4.1,"item":"284059","date":"2025-11-06"},{"pass":95.3,"ovf":2.6,"item":"284023","date":"2025-12-18"},{"pass":95.6,"ovf":2.6,"item":"284023","date":"2025-11-25"},{"pass":95.5,"ovf":2.7,"item":"284023","date":"2025-11-23"},{"pass":96.0,"ovf":3.3,"item":"284023","date":"2025-11-28"},{"pass":95.7,"ovf":2.8,"item":"284047","date":"2025-12-07"},{"pass":96.5,"ovf":3.3,"item":"284023","date":"2025-12-21"},{"pass":95.2,"ovf":2.6,"item":"284023","date":"2025-12-16"},{"pass":95.5,"ovf":3.3,"item":"284023","date":"2026-01-18"},{"pass":97.2,"ovf":3.3,"item":"284023","date":"2025-12-23"},{"pass":95.2,"ovf":2.7,"item":"284023","date":"2025-12-25"},{"pass":96.3,"ovf":2.7,"item":"284023","date":"2026-01-16"},{"pass":79.5,"ovf":null,"item":"284047","date":"2026-01-29"},{"pass":95.7,"ovf":2.6,"item":"284023","date":"2026-02-11"},{"pass":94.1,"ovf":2.7,"item":"284023","date":"2026-01-22"},{"pass":96.2,"ovf":2.8,"item":"284023","date":"2026-02-13"},{"pass":96.5,"ovf":2.2,"item":"284023","date":"2026-02-21"},{"pass":95.3,"ovf":2.4,"item":"284023","date":"2026-03-18"},{"pass":93.1,"ovf":2.2,"item":"284023","date":"2026-03-21"},{"pass":94.7,"ovf":2.4,"item":"284023","date":"2026-03-17"},{"pass":90.0,"ovf":4.3,"item":"284047","date":"2026-03-31"},{"pass":93.9,"ovf":2.7,"item":"284023","date":"2026-03-27"},{"pass":97.9,"ovf":3.0,"item":"284023","date":"2026-04-29"},{"pass":96.3,"ovf":2.7,"item":"284023","date":"2026-05-03"},{"pass":96.8,"ovf":3.0,"item":"284023","date":"2026-05-04"},{"pass":97.9,"ovf":2.9,"item":"284023","date":"2026-05-08"},{"pass":98.1,"ovf":2.9,"item":"284023","date":"2026-05-02"},{"pass":97.8,"ovf":2.9,"item":"284023","date":"2026-04-28"},{"pass":97.1,"ovf":3.0,"item":"284023","date":"2026-05-07"},{"pass":99.0,"ovf":5.1,"item":"284047","date":"2026-05-20"},{"pass":85.9,"ovf":4.8,"item":"284059","date":"2026-05-20"},{"pass":99.1,"ovf":4.2,"item":"284047","date":"2026-06-05"},{"pass":97.0,"ovf":3.4,"item":"284047","date":"2026-06-08"},{"pass":94.4,"ovf":3.6,"item":"284059","date":"2026-06-26"},{"pass":99.3,"ovf":4.1,"item":"284047","date":"2026-06-27"},{"pass":93.2,"ovf":4.2,"item":"284047","date":"2026-06-18"},{"pass":88.4,"ovf":4.0,"item":"284059","date":"2026-06-18"},{"pass":98.1,"ovf":3.8,"item":"284023","date":"2026-07-08"},{"pass":97.5,"ovf":4.1,"item":"284023","date":"2026-07-07"}]},"38609305":{"order_cnt":48,"avg_pass":94.13,"std_pass":3.92,"avg_overfill":4.61,"std_overfill":6.14,"avg_work_time":167.2,"items":["284023","284047","284059","284535","285101","285102","285103"],"item_stats":{"284047":{"avg_pass":95.12,"avg_ovf":4.26,"cnt":32},"284059":{"avg_pass":89.23,"avg_ovf":7.5,"cnt":7},"284535":{"avg_pass":94.19,"avg_ovf":4.44,"cnt":2},"285102":{"avg_pass":94.15,"avg_ovf":3.5,"cnt":2},"285103":{"avg_pass":93.82,"avg_ovf":2.75,"cnt":1},"284023":{"avg_pass":97.81,"avg_ovf":3.12,"cnt":2},"285101":{"avg_pass":91.99,"avg_ovf":3.81,"cnt":2}},"scatter":[{"pass":97.6,"ovf":2.9,"item":"284047","date":"2025-05-11"},{"pass":97.0,"ovf":2.6,"item":"284047","date":"2025-05-08"},{"pass":92.1,"ovf":4.8,"item":"284059","date":"2025-05-08"},{"pass":94.2,"ovf":2.8,"item":"284047","date":"2025-06-08"},{"pass":93.8,"ovf":2.5,"item":"284047","date":"2025-05-24"},{"pass":97.6,"ovf":2.6,"item":"284047","date":"2025-06-21"},{"pass":97.1,"ovf":3.4,"item":"284047","date":"2025-06-24"},{"pass":95.4,"ovf":3.6,"item":"284059","date":"2025-06-24"},{"pass":97.0,"ovf":3.2,"item":"284047","date":"2025-07-20"},{"pass":97.3,"ovf":2.8,"item":"284047","date":"2025-07-19"},{"pass":92.5,"ovf":4.1,"item":"284535","date":"2025-07-19"},{"pass":94.9,"ovf":2.3,"item":"284047","date":"2025-08-17"},{"pass":92.8,"ovf":3.4,"item":"285102","date":"2025-09-13"},{"pass":90.8,"ovf":10.1,"item":"284059","date":"2025-09-01"},{"pass":92.6,"ovf":2.7,"item":"284047","date":"2025-09-01"},{"pass":81.7,"ovf":4.8,"item":"284059","date":"2025-09-15"},{"pass":96.5,"ovf":2.9,"item":"284047","date":"2025-10-13"},{"pass":89.9,"ovf":21.8,"item":"284059","date":"2025-09-23"},{"pass":94.2,"ovf":3.1,"item":"284047","date":"2025-09-23"},{"pass":95.9,"ovf":4.8,"item":"284535","date":"2025-10-13"},{"pass":93.8,"ovf":2.7,"item":"285103","date":"2025-10-13"},{"pass":92.1,"ovf":2.4,"item":"284047","date":"2025-11-08"},{"pass":93.6,"ovf":1.7,"item":"284047","date":"2025-10-25"},{"pass":80.1,"ovf":4.2,"item":"284059","date":"2025-10-31"},{"pass":91.3,"ovf":2.6,"item":"284047","date":"2025-10-31"},{"pass":96.9,"ovf":3.0,"item":"284047","date":"2025-11-30"},{"pass":94.9,"ovf":3.0,"item":"284047","date":"2025-11-24"},{"pass":97.3,"ovf":3.0,"item":"284047","date":"2025-11-28"},{"pass":94.5,"ovf":3.2,"item":"284059","date":"2025-11-24"},{"pass":97.8,"ovf":3.1,"item":"284047","date":"2025-12-13"},{"pass":96.8,"ovf":2.1,"item":"284047","date":"2025-12-14"},{"pass":97.4,"ovf":3.0,"item":"284047","date":"2026-01-06"},{"pass":92.6,"ovf":41.3,"item":"284047","date":"2026-02-03"},{"pass":96.4,"ovf":3.6,"item":"284047","date":"2026-01-30"},{"pass":98.0,"ovf":3.0,"item":"284023","date":"2026-03-13"},{"pass":95.0,"ovf":3.6,"item":"284047","date":"2026-03-13"},{"pass":88.1,"ovf":3.6,"item":"284047","date":"2026-03-27"},{"pass":92.1,"ovf":3.6,"item":"285101","date":"2026-03-27"},{"pass":93.8,"ovf":4.2,"item":"284047","date":"2026-04-22"},{"pass":86.6,"ovf":4.1,"item":"284047","date":"2026-04-24"},{"pass":92.9,"ovf":3.8,"item":"284047","date":"2026-05-11"},{"pass":95.5,"ovf":3.6,"item":"285102","date":"2026-05-11"},{"pass":97.9,"ovf":3.2,"item":"284047","date":"2026-05-26"},{"pass":95.1,"ovf":3.9,"item":"284047","date":"2026-05-17"},{"pass":97.6,"ovf":3.2,"item":"284023","date":"2026-05-26"},{"pass":98.7,"ovf":3.7,"item":"284047","date":"2026-05-31"},{"pass":91.9,"ovf":4.1,"item":"285101","date":"2026-06-09"},{"pass":98.7,"ovf":3.7,"item":"284047","date":"2026-06-09"}]},"38613191":{"order_cnt":72,"avg_pass":94.51,"std_pass":5.09,"avg_overfill":4.16,"std_overfill":3.46,"avg_work_time":285.0,"items":["284023","284047","284059","284535","285101","285103"],"item_stats":{"284059":{"avg_pass":90.53,"avg_ovf":6.4,"cnt":18},"284047":{"avg_pass":94.21,"avg_ovf":3.19,"cnt":27},"284535":{"avg_pass":88.44,"avg_ovf":4.76,"cnt":1},"285101":{"avg_pass":92.48,"avg_ovf":3.47,"cnt":2},"285103":{"avg_pass":97.46,"avg_ovf":3.73,"cnt":1},"284023":{"avg_pass":98.31,"avg_ovf":3.6,"cnt":23}},"scatter":[{"pass":94.1,"ovf":4.1,"item":"284059","date":"2025-05-12"},{"pass":97.0,"ovf":1.5,"item":"284047","date":"2025-05-12"},{"pass":88.4,"ovf":4.8,"item":"284535","date":"2025-05-20"},{"pass":97.0,"ovf":2.4,"item":"284047","date":"2025-05-13"},{"pass":96.2,"ovf":4.1,"item":"284059","date":"2025-05-13"},{"pass":89.5,"ovf":2.5,"item":"284047","date":"2025-05-20"},{"pass":90.2,"ovf":2.3,"item":"284047","date":"2025-05-21"},{"pass":94.5,"ovf":4.5,"item":"284059","date":"2025-05-21"},{"pass":94.5,"ovf":2.9,"item":"284047","date":"2025-05-23"},{"pass":93.7,"ovf":4.0,"item":"284059","date":"2025-05-23"},{"pass":98.7,"ovf":3.8,"item":"284047","date":"2025-05-26"},{"pass":94.0,"ovf":21.7,"item":"284059","date":"2025-05-26"},{"pass":95.1,"ovf":2.8,"item":"284047","date":"2025-05-27"},{"pass":81.6,"ovf":4.5,"item":"284059","date":"2025-05-27"},{"pass":96.1,"ovf":3.6,"item":"284047","date":"2025-05-28"},{"pass":93.6,"ovf":4.1,"item":"284059","date":"2025-05-28"},{"pass":98.3,"ovf":4.0,"item":"284047","date":"2025-06-28"},{"pass":87.3,"ovf":4.4,"item":"284059","date":"2025-06-28"},{"pass":92.7,"ovf":2.3,"item":"284047","date":"2025-08-01"},{"pass":96.4,"ovf":2.5,"item":"284047","date":"2025-07-25"},{"pass":72.7,"ovf":5.1,"item":"284059","date":"2025-08-01"},{"pass":94.7,"ovf":4.2,"item":"284059","date":"2025-08-09"},{"pass":97.9,"ovf":3.5,"item":"284047","date":"2025-08-11"},{"pass":96.2,"ovf":3.7,"item":"285101","date":"2025-08-11"},{"pass":89.4,"ovf":5.0,"item":"284059","date":"2025-08-11"},{"pass":86.3,"ovf":1.5,"item":"284047","date":"2025-09-04"},{"pass":81.2,"ovf":4.0,"item":"284059","date":"2025-09-04"},{"pass":95.4,"ovf":3.5,"item":"284047","date":"2025-09-20"},{"pass":92.0,"ovf":4.3,"item":"284059","date":"2025-09-20"},{"pass":97.5,"ovf":2.9,"item":"284047","date":"2025-10-21"},{"pass":96.4,"ovf":3.3,"item":"284059","date":"2025-10-21"},{"pass":96.5,"ovf":3.2,"item":"284047","date":"2025-10-14"},{"pass":95.1,"ovf":2.4,"item":"284047","date":"2025-10-02"},{"pass":88.8,"ovf":3.3,"item":"285101","date":"2025-10-02"},{"pass":97.5,"ovf":3.7,"item":"285103","date":"2025-10-02"},{"pass":90.4,"ovf":3.9,"item":"284059","date":"2025-10-02"},{"pass":94.3,"ovf":26.1,"item":"284059","date":"2025-10-10"},{"pass":90.0,"ovf":3.9,"item":"284059","date":"2025-10-14"},{"pass":94.0,"ovf":3.3,"item":"284047","date":"2025-11-10"},{"pass":93.5,"ovf":4.0,"item":"284059","date":"2025-11-10"},{"pass":96.1,"ovf":3.2,"item":"284047","date":"2025-12-04"},{"pass":98.5,"ovf":3.5,"item":"284047","date":"2025-12-20"},{"pass":97.7,"ovf":3.8,"item":"284023","date":"2026-01-06"},{"pass":97.9,"ovf":3.9,"item":"284023","date":"2026-01-08"},{"pass":99.1,"ovf":3.8,"item":"284023","date":"2026-01-10"},{"pass":96.9,"ovf":3.2,"item":"284023","date":"2026-02-06"},{"pass":95.2,"ovf":2.9,"item":"284047","date":"2026-01-23"},{"pass":97.9,"ovf":3.3,"item":"284023","date":"2026-02-03"},{"pass":97.7,"ovf":3.2,"item":"284023","date":"2026-02-09"},{"pass":99.1,"ovf":3.4,"item":"284023","date":"2026-03-07"},{"pass":98.8,"ovf":3.8,"item":"284023","date":"2026-03-03"},{"pass":99.2,"ovf":3.3,"item":"284023","date":"2026-03-05"},{"pass":99.3,"ovf":3.2,"item":"284023","date":"2026-03-06"},{"pass":99.8,"ovf":4.1,"item":"284023","date":"2026-04-03"},{"pass":97.7,"ovf":4.0,"item":"284047","date":"2026-04-03"},{"pass":98.2,"ovf":4.0,"item":"284023","date":"2026-04-21"},{"pass":97.8,"ovf":3.1,"item":"284023","date":"2026-04-26"},{"pass":98.6,"ovf":3.6,"item":"284023","date":"2026-04-27"},{"pass":97.6,"ovf":3.2,"item":"284023","date":"2026-04-30"},{"pass":98.2,"ovf":3.2,"item":"284023","date":"2026-05-01"},{"pass":89.4,"ovf":4.3,"item":"284047","date":"2026-05-10"},{"pass":98.0,"ovf":3.6,"item":"284023","date":"2026-04-23"},{"pass":89.4,"ovf":4.1,"item":"284047","date":"2026-05-09"},{"pass":83.6,"ovf":4.1,"item":"284047","date":"2026-05-14"},{"pass":98.5,"ovf":4.5,"item":"284047","date":"2026-06-06"},{"pass":87.0,"ovf":4.9,"item":"284047","date":"2026-05-30"},{"pass":98.2,"ovf":3.5,"item":"284023","date":"2026-06-16"},{"pass":97.3,"ovf":3.5,"item":"284023","date":"2026-06-17"},{"pass":98.5,"ovf":4.1,"item":"284023","date":"2026-06-20"},{"pass":98.5,"ovf":3.8,"item":"284023","date":"2026-06-25"},{"pass":98.4,"ovf":4.3,"item":"284023","date":"2026-06-22"},{"pass":98.6,"ovf":4.0,"item":"284023","date":"2026-06-21"}]},"38604106":{"order_cnt":38,"avg_pass":92.12,"std_pass":19.71,"avg_overfill":3.77,"std_overfill":2.72,"avg_work_time":473.8,"items":["284023","284047","284760","284961"],"item_stats":{"284023":{"avg_pass":96.74,"avg_ovf":3.25,"cnt":32},"284760":{"avg_pass":-6.26,"avg_ovf":5.03,"cnt":1},"284961":{"avg_pass":58.85,"avg_ovf":11.27,"cnt":2},"284047":{"avg_pass":97.89,"avg_ovf":3.89,"cnt":3}},"scatter":[{"pass":98.2,"ovf":4.9,"item":"284023","date":"2025-04-11"},{"pass":98.6,"ovf":3.4,"item":"284023","date":"2025-05-01"},{"pass":-6.3,"ovf":5.0,"item":"284760","date":"2025-05-24"},{"pass":30.3,"ovf":19.6,"item":"284961","date":"2025-05-24"},{"pass":99.5,"ovf":4.2,"item":"284023","date":"2025-05-21"},{"pass":97.7,"ovf":3.7,"item":"284023","date":"2025-05-24"},{"pass":98.0,"ovf":3.7,"item":"284023","date":"2025-05-29"},{"pass":97.7,"ovf":3.7,"item":"284023","date":"2025-06-01"},{"pass":97.9,"ovf":3.8,"item":"284023","date":"2025-06-02"},{"pass":96.5,"ovf":3.0,"item":"284023","date":"2025-06-15"},{"pass":95.5,"ovf":2.6,"item":"284023","date":"2025-06-18"},{"pass":95.3,"ovf":2.8,"item":"284023","date":"2025-06-21"},{"pass":87.4,"ovf":2.9,"item":"284961","date":"2025-06-24"},{"pass":95.6,"ovf":3.1,"item":"284023","date":"2025-06-24"},{"pass":94.3,"ovf":4.4,"item":"284023","date":"2025-06-26"},{"pass":95.9,"ovf":3.3,"item":"284023","date":"2025-06-30"},{"pass":93.0,"ovf":2.8,"item":"284023","date":"2025-07-14"},{"pass":95.3,"ovf":2.6,"item":"284023","date":"2025-07-10"},{"pass":97.3,"ovf":2.9,"item":"284023","date":"2025-07-24"},{"pass":96.3,"ovf":3.1,"item":"284023","date":"2025-07-28"},{"pass":98.2,"ovf":4.4,"item":"284047","date":"2025-08-27"},{"pass":96.3,"ovf":3.9,"item":"284023","date":"2025-08-27"},{"pass":96.4,"ovf":3.3,"item":"284023","date":"2025-08-13"},{"pass":93.8,"ovf":3.3,"item":"284023","date":"2025-08-08"},{"pass":96.0,"ovf":3.3,"item":"284023","date":"2025-08-24"},{"pass":97.7,"ovf":3.7,"item":"284023","date":"2025-09-18"},{"pass":96.5,"ovf":2.6,"item":"284023","date":"2025-09-19"},{"pass":97.9,"ovf":3.6,"item":"284023","date":"2025-09-03"},{"pass":96.8,"ovf":3.4,"item":"284023","date":"2025-09-07"},{"pass":97.3,"ovf":3.0,"item":"284023","date":"2025-09-13"},{"pass":96.4,"ovf":3.7,"item":"284047","date":"2025-09-13"},{"pass":97.8,"ovf":2.8,"item":"284023","date":"2025-09-22"},{"pass":97.4,"ovf":2.7,"item":"284023","date":"2025-09-26"},{"pass":96.2,"ovf":2.7,"item":"284023","date":"2025-09-30"},{"pass":98.7,"ovf":2.9,"item":"284023","date":"2025-10-08"},{"pass":98.0,"ovf":2.5,"item":"284023","date":"2025-10-11"},{"pass":99.1,"ovf":3.6,"item":"284047","date":"2025-10-11"},{"pass":96.7,"ovf":2.7,"item":"284023","date":"2025-10-14"}]},"38602353":{"order_cnt":11,"avg_pass":95.93,"std_pass":1.45,"avg_overfill":3.25,"std_overfill":0.9,"avg_work_time":127.5,"items":["284023","284047","284535","285101","285102"],"item_stats":{"284047":{"avg_pass":96.32,"avg_ovf":2.98,"cnt":7},"285101":{"avg_pass":94.47,"avg_ovf":2.92,"cnt":1},"285102":{"avg_pass":94.17,"avg_ovf":3.48,"cnt":1},"284023":{"avg_pass":96.09,"avg_ovf":2.71,"cnt":1},"284535":{"avg_pass":96.25,"avg_ovf":5.78,"cnt":1}},"scatter":[{"pass":96.4,"ovf":2.8,"item":"284047","date":"2025-04-11"},{"pass":98.6,"ovf":3.3,"item":"284047","date":"2025-07-01"},{"pass":94.5,"ovf":2.9,"item":"285101","date":"2025-07-01"},{"pass":94.2,"ovf":3.5,"item":"285102","date":"2025-08-02"},{"pass":93.7,"ovf":2.7,"item":"284047","date":"2025-08-02"},{"pass":96.7,"ovf":2.8,"item":"284047","date":"2026-01-07"},{"pass":97.1,"ovf":3.4,"item":"284047","date":"2026-03-20"},{"pass":96.1,"ovf":2.7,"item":"284023","date":"2026-03-20"},{"pass":96.7,"ovf":3.2,"item":"284047","date":"2026-02-23"},{"pass":96.3,"ovf":5.8,"item":"284535","date":"2026-02-23"},{"pass":95.0,"ovf":2.6,"item":"284047","date":"2026-03-19"}]},"38605089":{"order_cnt":29,"avg_pass":90.37,"std_pass":17.98,"avg_overfill":4.2,"std_overfill":4.07,"avg_work_time":235.0,"items":["284047","284059","284535","285102","285103"],"item_stats":{"284047":{"avg_pass":95.66,"avg_ovf":2.91,"cnt":14},"284059":{"avg_pass":82.35,"avg_ovf":5.97,"cnt":11},"284535":{"avg_pass":93.13,"avg_ovf":4.7,"cnt":2},"285102":{"avg_pass":94.79,"avg_ovf":4.16,"cnt":1},"285103":{"avg_pass":94.54,"avg_ovf":1.78,"cnt":1}},"scatter":[{"pass":90.8,"ovf":2.7,"item":"284047","date":"2025-05-03"},{"pass":0.0,"ovf":24.9,"item":"284059","date":"2025-05-03"},{"pass":78.1,"ovf":5.1,"item":"284059","date":"2025-05-09"},{"pass":96.6,"ovf":2.5,"item":"284047","date":"2025-05-09"},{"pass":96.8,"ovf":3.7,"item":"284059","date":"2025-05-14"},{"pass":95.8,"ovf":5.2,"item":"284535","date":"2025-05-19"},{"pass":96.4,"ovf":2.3,"item":"284047","date":"2025-05-14"},{"pass":91.3,"ovf":3.0,"item":"284047","date":"2025-05-19"},{"pass":90.2,"ovf":4.3,"item":"284059","date":"2025-05-30"},{"pass":95.9,"ovf":3.1,"item":"284047","date":"2025-06-01"},{"pass":95.1,"ovf":2.8,"item":"284047","date":"2025-05-30"},{"pass":94.8,"ovf":4.2,"item":"285102","date":"2025-06-01"},{"pass":95.8,"ovf":3.3,"item":"284059","date":"2025-06-20"},{"pass":96.2,"ovf":2.8,"item":"284047","date":"2025-06-20"},{"pass":94.4,"ovf":2.8,"item":"284047","date":"2025-06-10"},{"pass":90.5,"ovf":4.2,"item":"284535","date":"2025-06-10"},{"pass":96.2,"ovf":2.6,"item":"284047","date":"2025-06-22"},{"pass":94.5,"ovf":1.8,"item":"285103","date":"2025-06-22"},{"pass":95.9,"ovf":2.7,"item":"284047","date":"2025-06-30"},{"pass":92.5,"ovf":4.5,"item":"284059","date":"2025-06-30"},{"pass":97.6,"ovf":4.0,"item":"284059","date":"2025-07-08"},{"pass":96.1,"ovf":2.9,"item":"284047","date":"2025-07-15"},{"pass":98.3,"ovf":3.6,"item":"284047","date":"2025-07-23"},{"pass":90.6,"ovf":3.9,"item":"284059","date":"2025-07-23"},{"pass":96.9,"ovf":3.0,"item":"284047","date":"2025-07-08"},{"pass":90.4,"ovf":3.6,"item":"284059","date":"2025-07-15"},{"pass":92.3,"ovf":4.0,"item":"284059","date":"2025-07-12"},{"pass":81.5,"ovf":4.3,"item":"284059","date":"2025-08-28"},{"pass":98.9,"ovf":3.9,"item":"284047","date":"2026-02-08"}]},"38602605":{"order_cnt":69,"avg_pass":91.22,"std_pass":12.35,"avg_overfill":4.89,"std_overfill":7.32,"avg_work_time":178.7,"items":["284047","284059","284535","284760","285101","285103"],"item_stats":{"285103":{"avg_pass":91.34,"avg_ovf":2.5,"cnt":3},"284047":{"avg_pass":93.6,"avg_ovf":3.74,"cnt":42},"284535":{"avg_pass":92.31,"avg_ovf":4.48,"cnt":8},"284059":{"avg_pass":90.57,"avg_ovf":6.15,"cnt":13},"285101":{"avg_pass":88.92,"avg_ovf":26.22,"cnt":2},"284760":{"avg_pass":-4.84,"avg_ovf":4.72,"cnt":1}},"scatter":[{"pass":94.0,"ovf":2.1,"item":"285103","date":"2025-05-01"},{"pass":95.4,"ovf":1.9,"item":"284047","date":"2025-05-10"},{"pass":88.1,"ovf":2.5,"item":"284047","date":"2025-06-09"},{"pass":91.2,"ovf":3.9,"item":"284535","date":"2025-05-15"},{"pass":93.1,"ovf":2.0,"item":"284047","date":"2025-05-15"},{"pass":94.3,"ovf":2.2,"item":"284047","date":"2025-05-25"},{"pass":91.3,"ovf":2.3,"item":"284047","date":"2025-06-07"},{"pass":91.6,"ovf":1.8,"item":"284047","date":"2025-06-16"},{"pass":89.4,"ovf":3.5,"item":"284059","date":"2025-06-16"},{"pass":85.2,"ovf":3.7,"item":"284535","date":"2025-06-09"},{"pass":98.1,"ovf":2.7,"item":"284047","date":"2025-06-26"},{"pass":93.7,"ovf":21.8,"item":"284059","date":"2025-06-26"},{"pass":87.5,"ovf":4.5,"item":"284059","date":"2025-07-16"},{"pass":92.6,"ovf":1.9,"item":"284047","date":"2025-07-16"},{"pass":82.9,"ovf":4.2,"item":"284059","date":"2025-07-24"},{"pass":94.9,"ovf":2.4,"item":"284047","date":"2025-07-24"},{"pass":92.1,"ovf":2.4,"item":"285103","date":"2025-07-25"},{"pass":95.1,"ovf":2.6,"item":"284047","date":"2025-08-20"},{"pass":91.6,"ovf":3.6,"item":"284059","date":"2025-08-20"},{"pass":94.3,"ovf":2.5,"item":"284047","date":"2025-08-18"},{"pass":88.8,"ovf":6.1,"item":"284535","date":"2025-08-18"},{"pass":94.6,"ovf":2.8,"item":"284047","date":"2025-09-26"},{"pass":91.5,"ovf":4.1,"item":"284535","date":"2025-10-09"},{"pass":96.6,"ovf":2.4,"item":"284047","date":"2025-10-17"},{"pass":87.9,"ovf":null,"item":"284059","date":"2025-09-26"},{"pass":90.6,"ovf":3.3,"item":"284059","date":"2025-10-03"},{"pass":88.0,"ovf":3.8,"item":"284059","date":"2025-10-17"},{"pass":97.6,"ovf":2.4,"item":"284047","date":"2025-10-19"},{"pass":93.3,"ovf":2.1,"item":"284047","date":"2025-11-19"},{"pass":93.3,"ovf":2.6,"item":"284047","date":"2025-10-30"},{"pass":94.1,"ovf":3.2,"item":"284535","date":"2025-10-30"},{"pass":94.2,"ovf":3.2,"item":"284047","date":"2025-11-13"},{"pass":94.3,"ovf":15.0,"item":"284059","date":"2025-11-13"},{"pass":97.8,"ovf":3.0,"item":"284059","date":"2025-11-19"},{"pass":90.6,"ovf":3.2,"item":"284059","date":"2025-12-01"},{"pass":94.8,"ovf":2.6,"item":"284047","date":"2025-12-01"},{"pass":94.8,"ovf":2.5,"item":"284047","date":"2025-12-10"},{"pass":85.5,"ovf":49.9,"item":"285101","date":"2025-12-10"},{"pass":90.7,"ovf":3.3,"item":"284059","date":"2025-12-15"},{"pass":96.2,"ovf":2.5,"item":"284047","date":"2025-12-15"},{"pass":92.4,"ovf":2.6,"item":"285101","date":"2026-01-20"},{"pass":94.5,"ovf":34.7,"item":"284047","date":"2026-01-13"},{"pass":94.6,"ovf":2.5,"item":"284047","date":"2026-01-05"},{"pass":94.6,"ovf":2.4,"item":"284047","date":"2026-01-20"},{"pass":94.2,"ovf":2.4,"item":"284047","date":"2026-01-18"},{"pass":93.7,"ovf":5.2,"item":"284535","date":"2026-01-27"},{"pass":97.2,"ovf":3.1,"item":"284047","date":"2026-01-27"},{"pass":87.8,"ovf":null,"item":"284047","date":"2026-02-10"},{"pass":94.1,"ovf":2.5,"item":"284047","date":"2026-02-25"},{"pass":97.5,"ovf":5.2,"item":"284535","date":"2026-02-25"},{"pass":97.5,"ovf":2.5,"item":"284047","date":"2026-03-04"},{"pass":86.7,"ovf":3.7,"item":"284047","date":"2026-03-29"},{"pass":87.1,"ovf":3.8,"item":"284047","date":"2026-03-28"},{"pass":94.7,"ovf":2.2,"item":"284047","date":"2026-03-25"},{"pass":88.0,"ovf":3.0,"item":"285103","date":"2026-04-08"},{"pass":84.3,"ovf":4.9,"item":"284047","date":"2026-04-14"},{"pass":89.7,"ovf":4.5,"item":"284047","date":"2026-04-08"},{"pass":83.8,"ovf":6.0,"item":"284047","date":"2026-04-26"},{"pass":92.6,"ovf":4.7,"item":"284047","date":"2026-04-21"},{"pass":92.4,"ovf":5.1,"item":"284047","date":"2026-05-07"},{"pass":93.0,"ovf":4.0,"item":"284047","date":"2026-05-18"},{"pass":-4.8,"ovf":4.7,"item":"284760","date":"2026-05-18"},{"pass":98.3,"ovf":2.9,"item":"284047","date":"2026-06-02"},{"pass":98.9,"ovf":3.6,"item":"284047","date":"2026-06-30"},{"pass":96.1,"ovf":3.8,"item":"284047","date":"2026-06-20"},{"pass":96.9,"ovf":2.7,"item":"284047","date":"2026-06-11"},{"pass":96.6,"ovf":4.5,"item":"284535","date":"2026-06-30"},{"pass":98.2,"ovf":3.4,"item":"284047","date":"2026-06-22"},{"pass":92.3,"ovf":4.7,"item":"284059","date":"2026-06-22"}]},"38612502":{"order_cnt":88,"avg_pass":96.79,"std_pass":3.09,"avg_overfill":3.42,"std_overfill":0.67,"avg_work_time":443.6,"items":["284023","284047"],"item_stats":{"284023":{"avg_pass":97.48,"avg_ovf":3.37,"cnt":77},"284047":{"avg_pass":91.94,"avg_ovf":3.82,"cnt":11}},"scatter":[{"pass":98.2,"ovf":3.9,"item":"284023","date":"2025-05-02"},{"pass":98.1,"ovf":3.7,"item":"284023","date":"2025-05-05"},{"pass":98.9,"ovf":4.1,"item":"284023","date":"2025-05-07"},{"pass":97.6,"ovf":3.2,"item":"284023","date":"2025-05-22"},{"pass":98.9,"ovf":4.2,"item":"284023","date":"2025-05-13"},{"pass":99.6,"ovf":4.8,"item":"284023","date":"2025-05-16"},{"pass":98.4,"ovf":3.5,"item":"284023","date":"2025-05-20"},{"pass":98.5,"ovf":3.6,"item":"284023","date":"2025-05-27"},{"pass":97.6,"ovf":3.3,"item":"284023","date":"2025-05-30"},{"pass":97.0,"ovf":4.0,"item":"284023","date":"2025-06-03"},{"pass":96.9,"ovf":3.0,"item":"284023","date":"2025-06-06"},{"pass":95.7,"ovf":3.3,"item":"284023","date":"2025-07-07"},{"pass":98.1,"ovf":3.6,"item":"284023","date":"2025-06-17"},{"pass":98.1,"ovf":3.4,"item":"284023","date":"2025-06-11"},{"pass":96.9,"ovf":3.1,"item":"284023","date":"2025-06-20"},{"pass":96.6,"ovf":3.4,"item":"284023","date":"2025-06-23"},{"pass":94.8,"ovf":2.7,"item":"284023","date":"2025-07-04"},{"pass":96.1,"ovf":3.2,"item":"284023","date":"2025-06-27"},{"pass":96.9,"ovf":3.5,"item":"284023","date":"2025-07-01"},{"pass":95.1,"ovf":2.8,"item":"284023","date":"2025-07-29"},{"pass":95.7,"ovf":2.8,"item":"284023","date":"2025-08-02"},{"pass":93.6,"ovf":2.2,"item":"284023","date":"2025-07-11"},{"pass":97.9,"ovf":3.8,"item":"284023","date":"2025-08-26"},{"pass":96.1,"ovf":2.8,"item":"284023","date":"2025-08-04"},{"pass":97.1,"ovf":2.9,"item":"284023","date":"2025-08-09"},{"pass":96.8,"ovf":3.2,"item":"284023","date":"2025-08-14"},{"pass":97.2,"ovf":3.6,"item":"284023","date":"2025-08-19"},{"pass":96.2,"ovf":3.0,"item":"284047","date":"2025-08-26"},{"pass":96.2,"ovf":2.7,"item":"284023","date":"2025-09-23"},{"pass":97.3,"ovf":3.7,"item":"284023","date":"2025-08-29"},{"pass":96.8,"ovf":3.4,"item":"284023","date":"2025-09-01"},{"pass":96.5,"ovf":3.6,"item":"284023","date":"2025-09-05"},{"pass":98.5,"ovf":2.8,"item":"284023","date":"2025-09-09"},{"pass":96.8,"ovf":3.2,"item":"284023","date":"2025-09-11"},{"pass":95.9,"ovf":2.8,"item":"284047","date":"2025-09-11"},{"pass":97.5,"ovf":2.7,"item":"284023","date":"2025-09-16"},{"pass":97.0,"ovf":2.4,"item":"284023","date":"2025-09-29"},{"pass":96.8,"ovf":2.5,"item":"284047","date":"2025-09-29"},{"pass":97.3,"ovf":2.4,"item":"284023","date":"2025-10-02"},{"pass":97.1,"ovf":2.8,"item":"284023","date":"2025-10-10"},{"pass":95.8,"ovf":2.4,"item":"284047","date":"2025-10-10"},{"pass":97.8,"ovf":2.7,"item":"284023","date":"2025-10-15"},{"pass":97.8,"ovf":3.1,"item":"284023","date":"2025-10-22"},{"pass":98.1,"ovf":2.8,"item":"284023","date":"2025-11-17"},{"pass":97.3,"ovf":3.4,"item":"284023","date":"2025-10-31"},{"pass":98.1,"ovf":3.2,"item":"284023","date":"2025-10-26"},{"pass":97.2,"ovf":3.1,"item":"284023","date":"2025-10-28"},{"pass":98.2,"ovf":2.8,"item":"284023","date":"2025-11-12"},{"pass":97.0,"ovf":2.9,"item":"284023","date":"2025-11-16"},{"pass":96.8,"ovf":3.3,"item":"284023","date":"2025-11-20"},{"pass":97.1,"ovf":3.4,"item":"284023","date":"2025-11-24"},{"pass":96.2,"ovf":3.2,"item":"284023","date":"2025-12-03"},{"pass":96.7,"ovf":3.2,"item":"284023","date":"2025-12-05"},{"pass":97.0,"ovf":2.9,"item":"284023","date":"2025-12-08"},{"pass":97.3,"ovf":3.3,"item":"284023","date":"2025-12-17"},{"pass":96.7,"ovf":3.3,"item":"284023","date":"2025-12-26"},{"pass":97.9,"ovf":3.0,"item":"284023","date":"2025-12-29"},{"pass":97.6,"ovf":3.5,"item":"284023","date":"2026-01-01"},{"pass":98.1,"ovf":3.2,"item":"284023","date":"2026-01-05"},{"pass":97.0,"ovf":4.0,"item":"284023","date":"2026-01-29"},{"pass":98.4,"ovf":4.4,"item":"284023","date":"2026-02-25"},{"pass":98.3,"ovf":3.7,"item":"284023","date":"2026-03-01"},{"pass":98.6,"ovf":3.6,"item":"284023","date":"2026-03-08"},{"pass":98.9,"ovf":3.3,"item":"284023","date":"2026-03-09"},{"pass":98.0,"ovf":3.4,"item":"284023","date":"2026-03-04"},{"pass":98.0,"ovf":3.0,"item":"284023","date":"2026-03-13"},{"pass":90.3,"ovf":5.2,"item":"284047","date":"2026-03-21"},{"pass":96.1,"ovf":3.4,"item":"284047","date":"2026-04-15"},{"pass":96.0,"ovf":3.4,"item":"284047","date":"2026-03-30"},{"pass":82.7,"ovf":5.9,"item":"284047","date":"2026-05-01"},{"pass":97.3,"ovf":3.5,"item":"284023","date":"2026-05-12"},{"pass":98.3,"ovf":4.1,"item":"284023","date":"2026-05-13"},{"pass":98.5,"ovf":4.0,"item":"284023","date":"2026-05-17"},{"pass":98.9,"ovf":3.3,"item":"284023","date":"2026-05-18"},{"pass":97.9,"ovf":2.8,"item":"284023","date":"2026-05-19"},{"pass":98.6,"ovf":3.4,"item":"284023","date":"2026-05-21"},{"pass":98.6,"ovf":3.8,"item":"284023","date":"2026-05-22"},{"pass":82.9,"ovf":5.9,"item":"284047","date":"2026-05-28"},{"pass":97.8,"ovf":4.0,"item":"284023","date":"2026-07-04"},{"pass":98.1,"ovf":3.4,"item":"284023","date":"2026-07-02"},{"pass":98.1,"ovf":3.6,"item":"284023","date":"2026-07-03"},{"pass":98.5,"ovf":4.3,"item":"284023","date":"2026-06-27"},{"pass":98.0,"ovf":4.0,"item":"284023","date":"2026-06-28"},{"pass":98.5,"ovf":3.2,"item":"284047","date":"2026-06-10"},{"pass":80.2,"ovf":4.3,"item":"284047","date":"2026-06-14"},{"pass":97.8,"ovf":4.2,"item":"284023","date":"2026-06-23"},{"pass":98.8,"ovf":4.3,"item":"284023","date":"2026-06-24"},{"pass":97.0,"ovf":3.3,"item":"284023","date":"2026-06-30"}]},"38602525":{"order_cnt":81,"avg_pass":93.92,"std_pass":12.1,"avg_overfill":3.82,"std_overfill":1.63,"avg_work_time":378.8,"items":["284023","284047","284059","284535","284760","285104"],"item_stats":{"284047":{"avg_pass":95.06,"avg_ovf":3.56,"cnt":20},"284059":{"avg_pass":87.62,"avg_ovf":5.16,"cnt":11},"284023":{"avg_pass":97.02,"avg_ovf":3.49,"cnt":47},"284535":{"avg_pass":95.41,"avg_ovf":9.89,"cnt":1},"284760":{"avg_pass":-6.83,"avg_ovf":4.03,"cnt":1},"285104":{"avg_pass":93.75,"avg_ovf":3.42,"cnt":1}},"scatter":[{"pass":95.6,"ovf":3.7,"item":"284047","date":"2025-05-02"},{"pass":88.4,"ovf":4.0,"item":"284059","date":"2025-05-02"},{"pass":92.6,"ovf":2.4,"item":"284023","date":"2025-06-09"},{"pass":95.4,"ovf":9.9,"item":"284535","date":"2025-06-06"},{"pass":99.2,"ovf":4.2,"item":"284023","date":"2025-05-14"},{"pass":98.6,"ovf":3.9,"item":"284023","date":"2025-05-18"},{"pass":99.1,"ovf":5.1,"item":"284023","date":"2025-05-19"},{"pass":96.2,"ovf":2.9,"item":"284023","date":"2025-05-23"},{"pass":95.4,"ovf":3.2,"item":"284047","date":"2025-06-06"},{"pass":93.8,"ovf":2.8,"item":"284023","date":"2025-06-16"},{"pass":98.5,"ovf":4.2,"item":"284023","date":"2025-06-12"},{"pass":96.3,"ovf":2.9,"item":"284023","date":"2025-06-19"},{"pass":96.9,"ovf":4.1,"item":"284047","date":"2025-06-27"},{"pass":82.1,"ovf":5.0,"item":"284059","date":"2025-06-27"},{"pass":98.2,"ovf":4.3,"item":"284047","date":"2025-06-29"},{"pass":96.9,"ovf":3.7,"item":"284059","date":"2025-06-29"},{"pass":96.4,"ovf":3.3,"item":"284023","date":"2025-07-08"},{"pass":94.7,"ovf":2.8,"item":"284023","date":"2025-07-13"},{"pass":96.5,"ovf":2.9,"item":"284023","date":"2025-07-18"},{"pass":92.0,"ovf":2.2,"item":"284047","date":"2025-07-30"},{"pass":82.4,"ovf":4.9,"item":"284059","date":"2025-07-30"},{"pass":95.6,"ovf":3.2,"item":"284023","date":"2025-08-05"},{"pass":94.6,"ovf":3.2,"item":"284023","date":"2025-08-10"},{"pass":97.9,"ovf":3.5,"item":"284047","date":"2025-08-10"},{"pass":95.9,"ovf":3.6,"item":"284023","date":"2025-08-11"},{"pass":97.4,"ovf":3.4,"item":"284023","date":"2025-08-15"},{"pass":96.4,"ovf":3.2,"item":"284047","date":"2025-08-23"},{"pass":82.7,"ovf":4.5,"item":"284059","date":"2025-08-23"},{"pass":95.6,"ovf":3.3,"item":"284047","date":"2025-08-24"},{"pass":80.5,"ovf":3.8,"item":"284059","date":"2025-08-24"},{"pass":97.5,"ovf":3.5,"item":"284023","date":"2025-09-02"},{"pass":91.7,"ovf":2.8,"item":"284047","date":"2025-09-19"},{"pass":94.5,"ovf":3.6,"item":"284059","date":"2025-09-19"},{"pass":96.8,"ovf":3.7,"item":"284023","date":"2025-09-06"},{"pass":97.5,"ovf":3.4,"item":"284023","date":"2025-09-08"},{"pass":97.0,"ovf":3.6,"item":"284023","date":"2025-09-14"},{"pass":90.2,"ovf":2.8,"item":"284047","date":"2025-09-25"},{"pass":86.0,"ovf":15.5,"item":"284059","date":"2025-09-25"},{"pass":98.7,"ovf":2.7,"item":"284023","date":"2025-10-07"},{"pass":98.5,"ovf":2.7,"item":"284023","date":"2025-10-03"},{"pass":98.0,"ovf":2.5,"item":"284047","date":"2025-10-03"},{"pass":99.1,"ovf":3.6,"item":"284047","date":"2025-10-23"},{"pass":95.7,"ovf":2.9,"item":"284059","date":"2025-10-23"},{"pass":97.5,"ovf":3.3,"item":"284023","date":"2025-11-01"},{"pass":96.7,"ovf":2.9,"item":"284023","date":"2025-10-29"},{"pass":96.4,"ovf":3.3,"item":"284023","date":"2025-11-26"},{"pass":97.3,"ovf":3.5,"item":"284023","date":"2025-11-29"},{"pass":96.3,"ovf":2.9,"item":"284023","date":"2025-12-01"},{"pass":97.5,"ovf":3.1,"item":"284023","date":"2025-12-07"},{"pass":92.4,"ovf":4.1,"item":"284047","date":"2025-12-16"},{"pass":92.5,"ovf":4.3,"item":"284059","date":"2025-12-16"},{"pass":-6.8,"ovf":4.0,"item":"284760","date":"2025-12-23"},{"pass":98.2,"ovf":3.3,"item":"284023","date":"2025-12-24"},{"pass":96.5,"ovf":3.0,"item":"284023","date":"2025-12-28"},{"pass":96.9,"ovf":3.5,"item":"284023","date":"2025-12-31"},{"pass":97.7,"ovf":3.1,"item":"284023","date":"2026-01-02"},{"pass":96.3,"ovf":3.4,"item":"284023","date":"2026-01-21"},{"pass":93.3,"ovf":2.4,"item":"284047","date":"2026-01-09"},{"pass":98.0,"ovf":3.8,"item":"284023","date":"2026-01-25"},{"pass":97.1,"ovf":3.9,"item":"284023","date":"2026-01-27"},{"pass":96.9,"ovf":3.2,"item":"284047","date":"2026-02-13"},{"pass":93.8,"ovf":3.4,"item":"285104","date":"2026-02-13"},{"pass":97.2,"ovf":4.3,"item":"284023","date":"2026-02-28"},{"pass":98.2,"ovf":3.6,"item":"284047","date":"2026-03-12"},{"pass":97.5,"ovf":3.6,"item":"284023","date":"2026-04-15"},{"pass":98.2,"ovf":4.0,"item":"284047","date":"2026-04-09"},{"pass":96.9,"ovf":3.5,"item":"284023","date":"2026-04-14"},{"pass":95.3,"ovf":4.2,"item":"284023","date":"2026-04-24"},{"pass":98.1,"ovf":3.6,"item":"284023","date":"2026-04-25"},{"pass":92.4,"ovf":6.0,"item":"284047","date":"2026-04-27"},{"pass":97.5,"ovf":4.0,"item":"284023","date":"2026-04-22"},{"pass":89.7,"ovf":4.2,"item":"284047","date":"2026-05-03"},{"pass":93.1,"ovf":4.4,"item":"284047","date":"2026-05-19"},{"pass":82.0,"ovf":4.6,"item":"284059","date":"2026-05-19"},{"pass":96.3,"ovf":3.8,"item":"284023","date":"2026-06-08"},{"pass":98.5,"ovf":4.1,"item":"284023","date":"2026-06-15"},{"pass":97.0,"ovf":3.7,"item":"284023","date":"2026-06-11"},{"pass":97.2,"ovf":3.8,"item":"284023","date":"2026-06-13"},{"pass":99.2,"ovf":4.1,"item":"284023","date":"2026-06-18"},{"pass":98.3,"ovf":4.2,"item":"284023","date":"2026-06-19"},{"pass":97.2,"ovf":3.8,"item":"284023","date":"2026-06-14"}]},"38602325":{"order_cnt":38,"avg_pass":95.73,"std_pass":1.38,"avg_overfill":2.63,"std_overfill":0.47,"avg_work_time":487.6,"items":["284023","284047","285103"],"item_stats":{"284023":{"avg_pass":95.7,"avg_ovf":2.61,"cnt":35},"284047":{"avg_pass":96.45,"avg_ovf":2.54,"cnt":2},"285103":{"avg_pass":95.58,"avg_ovf":3.35,"cnt":1}},"scatter":[{"pass":96.9,"ovf":2.4,"item":"284023","date":"2025-05-03"},{"pass":97.5,"ovf":2.5,"item":"284023","date":"2025-05-10"},{"pass":95.9,"ovf":2.9,"item":"284023","date":"2025-05-25"},{"pass":94.9,"ovf":2.5,"item":"284023","date":"2025-06-07"},{"pass":95.0,"ovf":2.5,"item":"284023","date":"2025-07-05"},{"pass":93.5,"ovf":2.8,"item":"284023","date":"2025-07-06"},{"pass":94.9,"ovf":2.8,"item":"284023","date":"2025-06-14"},{"pass":95.8,"ovf":3.0,"item":"284023","date":"2025-06-10"},{"pass":94.6,"ovf":3.4,"item":"284023","date":"2025-06-28"},{"pass":94.2,"ovf":2.2,"item":"284023","date":"2025-08-01"},{"pass":93.1,"ovf":2.1,"item":"284023","date":"2025-07-12"},{"pass":94.9,"ovf":1.9,"item":"284023","date":"2025-07-19"},{"pass":93.7,"ovf":2.5,"item":"284023","date":"2025-07-26"},{"pass":95.9,"ovf":2.7,"item":"284023","date":"2025-08-16"},{"pass":95.3,"ovf":2.8,"item":"284023","date":"2025-08-23"},{"pass":93.8,"ovf":1.3,"item":"284047","date":"2025-08-09"},{"pass":93.6,"ovf":3.0,"item":"284023","date":"2025-08-06"},{"pass":96.4,"ovf":2.5,"item":"284023","date":"2025-09-20"},{"pass":97.0,"ovf":2.1,"item":"284023","date":"2025-10-20"},{"pass":97.3,"ovf":2.3,"item":"284023","date":"2025-09-27"},{"pass":97.8,"ovf":2.0,"item":"284023","date":"2025-09-28"},{"pass":97.1,"ovf":2.6,"item":"284023","date":"2025-10-18"},{"pass":95.9,"ovf":2.7,"item":"284023","date":"2025-10-25"},{"pass":93.6,"ovf":1.9,"item":"284023","date":"2025-11-02"},{"pass":95.0,"ovf":2.2,"item":"284023","date":"2025-11-03"},{"pass":96.6,"ovf":2.7,"item":"284023","date":"2025-11-04"},{"pass":97.1,"ovf":2.8,"item":"284023","date":"2025-11-14"},{"pass":96.8,"ovf":3.3,"item":"284023","date":"2025-11-20"},{"pass":96.5,"ovf":3.0,"item":"284023","date":"2025-11-22"},{"pass":95.8,"ovf":2.6,"item":"284023","date":"2025-11-18"},{"pass":95.2,"ovf":2.9,"item":"284023","date":"2025-11-30"},{"pass":96.3,"ovf":3.1,"item":"284023","date":"2025-12-02"},{"pass":96.1,"ovf":2.6,"item":"284023","date":"2025-11-27"},{"pass":97.0,"ovf":2.6,"item":"284023","date":"2025-12-11"},{"pass":95.6,"ovf":2.8,"item":"284023","date":"2026-01-03"},{"pass":96.7,"ovf":2.6,"item":"284023","date":"2025-12-27"},{"pass":95.6,"ovf":3.3,"item":"285103","date":"2026-03-06"},{"pass":99.1,"ovf":3.7,"item":"284047","date":"2026-03-06"}]},"38602569":{"order_cnt":73,"avg_pass":95.37,"std_pass":8.73,"avg_overfill":3.5,"std_overfill":1.82,"avg_work_time":427.0,"items":["284023","284047","284059","285101","285103"],"item_stats":{"284023":{"avg_pass":97.24,"avg_ovf":3.28,"cnt":52},"284047":{"avg_pass":96.03,"avg_ovf":3.23,"cnt":15},"284059":{"avg_pass":70.15,"avg_ovf":7.61,"cnt":4},"285101":{"avg_pass":92.03,"avg_ovf":3.13,"cnt":1},"285103":{"avg_pass":92.97,"avg_ovf":2.62,"cnt":1}},"scatter":[{"pass":98.4,"ovf":3.2,"item":"284023","date":"2025-05-04"},{"pass":98.3,"ovf":3.5,"item":"284023","date":"2025-05-06"},{"pass":98.9,"ovf":3.6,"item":"284023","date":"2025-05-09"},{"pass":97.8,"ovf":3.5,"item":"284023","date":"2025-05-28"},{"pass":98.0,"ovf":3.3,"item":"284023","date":"2025-05-31"},{"pass":96.5,"ovf":2.9,"item":"284023","date":"2025-06-05"},{"pass":95.4,"ovf":2.6,"item":"284023","date":"2025-07-03"},{"pass":97.0,"ovf":3.0,"item":"284047","date":"2025-06-15"},{"pass":95.9,"ovf":3.0,"item":"284023","date":"2025-06-25"},{"pass":94.3,"ovf":3.1,"item":"284023","date":"2025-06-29"},{"pass":97.0,"ovf":2.9,"item":"284047","date":"2025-07-12"},{"pass":97.6,"ovf":2.8,"item":"284023","date":"2025-07-23"},{"pass":96.8,"ovf":2.7,"item":"284023","date":"2025-07-31"},{"pass":97.4,"ovf":2.8,"item":"284023","date":"2025-07-27"},{"pass":97.8,"ovf":3.4,"item":"284023","date":"2025-08-20"},{"pass":87.1,"ovf":4.8,"item":"284023","date":"2025-08-25"},{"pass":94.3,"ovf":2.1,"item":"284047","date":"2025-08-25"},{"pass":96.6,"ovf":3.3,"item":"284047","date":"2025-08-29"},{"pass":96.7,"ovf":3.1,"item":"284023","date":"2025-08-30"},{"pass":93.8,"ovf":2.5,"item":"284047","date":"2025-08-30"},{"pass":79.1,"ovf":4.7,"item":"284059","date":"2025-09-12"},{"pass":96.7,"ovf":2.8,"item":"284023","date":"2025-09-17"},{"pass":96.9,"ovf":2.8,"item":"284023","date":"2025-09-21"},{"pass":97.0,"ovf":2.1,"item":"284023","date":"2025-10-20"},{"pass":92.0,"ovf":3.1,"item":"285101","date":"2025-09-30"},{"pass":97.8,"ovf":2.3,"item":"284023","date":"2025-09-25"},{"pass":97.2,"ovf":2.4,"item":"284023","date":"2025-10-24"},{"pass":98.1,"ovf":2.1,"item":"284023","date":"2025-10-19"},{"pass":95.8,"ovf":3.1,"item":"284047","date":"2025-11-01"},{"pass":95.8,"ovf":2.9,"item":"284047","date":"2025-11-07"},{"pass":97.8,"ovf":3.2,"item":"284023","date":"2025-12-19"},{"pass":97.3,"ovf":2.9,"item":"284023","date":"2025-12-15"},{"pass":97.3,"ovf":2.9,"item":"284023","date":"2025-12-14"},{"pass":97.5,"ovf":3.1,"item":"284023","date":"2025-12-13"},{"pass":97.5,"ovf":3.1,"item":"284023","date":"2025-12-10"},{"pass":97.5,"ovf":3.2,"item":"284023","date":"2025-12-20"},{"pass":95.5,"ovf":3.2,"item":"284023","date":"2026-01-14"},{"pass":96.4,"ovf":2.8,"item":"284047","date":"2025-12-27"},{"pass":96.3,"ovf":2.9,"item":"284023","date":"2026-01-09"},{"pass":98.1,"ovf":2.8,"item":"284023","date":"2026-01-17"},{"pass":97.5,"ovf":3.1,"item":"284023","date":"2026-02-04"},{"pass":98.7,"ovf":3.3,"item":"284023","date":"2026-02-08"},{"pass":96.9,"ovf":3.3,"item":"284047","date":"2026-01-21"},{"pass":98.2,"ovf":3.3,"item":"284023","date":"2026-02-05"},{"pass":93.0,"ovf":2.6,"item":"285103","date":"2026-01-21"},{"pass":98.6,"ovf":3.5,"item":"284023","date":"2026-02-12"},{"pass":95.6,"ovf":3.2,"item":"284047","date":"2026-03-17"},{"pass":97.2,"ovf":3.1,"item":"284023","date":"2026-03-02"},{"pass":98.4,"ovf":4.2,"item":"284023","date":"2026-04-09"},{"pass":97.9,"ovf":4.1,"item":"284023","date":"2026-03-31"},{"pass":98.0,"ovf":4.0,"item":"284023","date":"2026-04-04"},{"pass":98.3,"ovf":3.9,"item":"284023","date":"2026-04-05"},{"pass":98.6,"ovf":4.4,"item":"284023","date":"2026-04-11"},{"pass":98.3,"ovf":4.0,"item":"284023","date":"2026-04-10"},{"pass":96.8,"ovf":3.2,"item":"284023","date":"2026-04-01"},{"pass":98.8,"ovf":4.1,"item":"284023","date":"2026-04-02"},{"pass":88.4,"ovf":4.9,"item":"284047","date":"2026-05-02"},{"pass":99.2,"ovf":3.9,"item":"284047","date":"2026-05-04"},{"pass":97.2,"ovf":3.8,"item":"284023","date":"2026-06-05"},{"pass":97.2,"ovf":3.6,"item":"284023","date":"2026-05-27"},{"pass":28.1,"ovf":18.0,"item":"284059","date":"2026-05-15"},{"pass":97.2,"ovf":3.6,"item":"284023","date":"2026-05-28"},{"pass":97.6,"ovf":3.2,"item":"284023","date":"2026-05-26"},{"pass":98.2,"ovf":3.2,"item":"284047","date":"2026-05-15"},{"pass":96.8,"ovf":3.5,"item":"284023","date":"2026-05-30"},{"pass":97.3,"ovf":3.8,"item":"284023","date":"2026-06-02"},{"pass":97.1,"ovf":3.6,"item":"284023","date":"2026-05-31"},{"pass":97.2,"ovf":3.5,"item":"284023","date":"2026-06-01"},{"pass":97.6,"ovf":3.8,"item":"284023","date":"2026-06-04"},{"pass":94.0,"ovf":3.8,"item":"284059","date":"2026-06-24"},{"pass":79.4,"ovf":3.9,"item":"284059","date":"2026-06-16"},{"pass":98.0,"ovf":3.4,"item":"284047","date":"2026-06-24"},{"pass":97.3,"ovf":4.1,"item":"284047","date":"2026-06-16"}]},"38612963":{"order_cnt":64,"avg_pass":93.23,"std_pass":4.96,"avg_overfill":3.61,"std_overfill":0.91,"avg_work_time":168.6,"items":["284023","284047","284059","284535","285101","285102","285103","285104"],"item_stats":{"284047":{"avg_pass":94.98,"avg_ovf":3.27,"cnt":39},"284059":{"avg_pass":86.26,"avg_ovf":4.47,"cnt":13},"285101":{"avg_pass":93.21,"avg_ovf":3.08,"cnt":1},"285102":{"avg_pass":93.35,"avg_ovf":3.93,"cnt":3},"284535":{"avg_pass":95.26,"avg_ovf":5.31,"cnt":1},"284023":{"avg_pass":97.11,"avg_ovf":3.56,"cnt":4},"285104":{"avg_pass":96.4,"avg_ovf":3.38,"cnt":2},"285103":{"avg_pass":91.64,"avg_ovf":4.07,"cnt":1}},"scatter":[{"pass":89.4,"ovf":2.0,"item":"284047","date":"2025-05-04"},{"pass":81.0,"ovf":5.0,"item":"284059","date":"2025-05-04"},{"pass":98.8,"ovf":3.6,"item":"284047","date":"2025-05-16"},{"pass":93.2,"ovf":3.1,"item":"285101","date":"2025-05-16"},{"pass":90.6,"ovf":4.1,"item":"285102","date":"2025-05-16"},{"pass":88.5,"ovf":2.0,"item":"284047","date":"2025-06-02"},{"pass":86.7,"ovf":3.8,"item":"284059","date":"2025-06-02"},{"pass":93.3,"ovf":2.4,"item":"284047","date":"2025-06-12"},{"pass":89.7,"ovf":4.4,"item":"284059","date":"2025-06-12"},{"pass":94.1,"ovf":2.6,"item":"284047","date":"2025-06-18"},{"pass":96.5,"ovf":3.9,"item":"284059","date":"2025-06-18"},{"pass":96.2,"ovf":2.4,"item":"284047","date":"2025-07-18"},{"pass":95.3,"ovf":5.3,"item":"284535","date":"2025-07-18"},{"pass":93.2,"ovf":2.3,"item":"284047","date":"2025-07-26"},{"pass":94.4,"ovf":2.2,"item":"284047","date":"2025-07-31"},{"pass":86.9,"ovf":4.4,"item":"284059","date":"2025-07-31"},{"pass":96.3,"ovf":3.2,"item":"284047","date":"2025-08-16"},{"pass":89.0,"ovf":4.3,"item":"284059","date":"2025-08-29"},{"pass":90.9,"ovf":2.8,"item":"284047","date":"2025-09-09"},{"pass":87.8,"ovf":3.7,"item":"284059","date":"2025-09-09"},{"pass":76.3,"ovf":5.4,"item":"284059","date":"2025-09-11"},{"pass":97.8,"ovf":3.1,"item":"284023","date":"2025-10-22"},{"pass":98.5,"ovf":4.0,"item":"284047","date":"2025-10-22"},{"pass":89.7,"ovf":4.3,"item":"284059","date":"2025-10-22"},{"pass":90.1,"ovf":3.0,"item":"284047","date":"2025-09-24"},{"pass":95.2,"ovf":2.7,"item":"285104","date":"2025-09-24"},{"pass":90.4,"ovf":2.7,"item":"284047","date":"2025-10-28"},{"pass":85.7,"ovf":4.9,"item":"284059","date":"2025-10-28"},{"pass":91.4,"ovf":2.2,"item":"284047","date":"2025-11-04"},{"pass":82.6,"ovf":4.5,"item":"284059","date":"2025-11-04"},{"pass":92.6,"ovf":2.8,"item":"284047","date":"2025-11-09"},{"pass":95.6,"ovf":2.8,"item":"284047","date":"2025-12-18"},{"pass":86.9,"ovf":4.9,"item":"284059","date":"2025-12-18"},{"pass":95.1,"ovf":2.5,"item":"284047","date":"2025-12-06"},{"pass":97.8,"ovf":2.7,"item":"284047","date":"2025-12-11"},{"pass":97.6,"ovf":4.1,"item":"285104","date":"2025-12-11"},{"pass":97.2,"ovf":3.1,"item":"284047","date":"2026-01-12"},{"pass":96.7,"ovf":3.3,"item":"284047","date":"2026-01-04"},{"pass":95.9,"ovf":3.1,"item":"284047","date":"2026-01-22"},{"pass":95.5,"ovf":4.1,"item":"285102","date":"2026-01-22"},{"pass":92.6,"ovf":3.1,"item":"284047","date":"2026-01-25"},{"pass":97.8,"ovf":3.4,"item":"284047","date":"2026-02-05"},{"pass":97.4,"ovf":3.0,"item":"284047","date":"2026-02-06"},{"pass":95.8,"ovf":3.4,"item":"284047","date":"2026-02-28"},{"pass":95.8,"ovf":3.4,"item":"284047","date":"2026-02-28"},{"pass":98.9,"ovf":3.3,"item":"284023","date":"2026-03-09"},{"pass":93.3,"ovf":3.3,"item":"284023","date":"2026-03-29"},{"pass":86.7,"ovf":5.4,"item":"284047","date":"2026-04-11"},{"pass":93.0,"ovf":5.4,"item":"284047","date":"2026-04-12"},{"pass":98.4,"ovf":4.5,"item":"284023","date":"2026-04-12"},{"pass":95.0,"ovf":3.3,"item":"284047","date":"2026-04-07"},{"pass":95.7,"ovf":3.2,"item":"284047","date":"2026-04-13"},{"pass":94.0,"ovf":3.5,"item":"285102","date":"2026-04-13"},{"pass":94.4,"ovf":3.5,"item":"284047","date":"2026-04-20"},{"pass":98.7,"ovf":4.4,"item":"284047","date":"2026-04-30"},{"pass":97.3,"ovf":4.0,"item":"284047","date":"2026-05-08"},{"pass":91.6,"ovf":4.1,"item":"285103","date":"2026-05-08"},{"pass":94.9,"ovf":2.8,"item":"284047","date":"2026-05-23"},{"pass":98.7,"ovf":4.4,"item":"284047","date":"2026-05-24"},{"pass":98.9,"ovf":4.5,"item":"284047","date":"2026-05-29"},{"pass":99.3,"ovf":4.3,"item":"284047","date":"2026-05-16"},{"pass":96.9,"ovf":3.8,"item":"284047","date":"2026-06-17"},{"pass":82.5,"ovf":4.7,"item":"284059","date":"2026-06-17"},{"pass":98.6,"ovf":4.6,"item":"284047","date":"2026-07-05"}]},"38611672":{"order_cnt":71,"avg_pass":94.8,"std_pass":4.58,"avg_overfill":3.74,"std_overfill":0.7,"avg_work_time":276.2,"items":["284023","284047","284059","284535","285101","285102","285103","285104"],"item_stats":{"284059":{"avg_pass":89.43,"avg_ovf":3.85,"cnt":14},"284047":{"avg_pass":95.6,"avg_ovf":3.41,"cnt":30},"285104":{"avg_pass":88.02,"avg_ovf":2.9,"cnt":1},"284535":{"avg_pass":96.11,"avg_ovf":4.38,"cnt":1},"285102":{"avg_pass":91.85,"avg_ovf":2.72,"cnt":1},"285103":{"avg_pass":87.75,"avg_ovf":4.06,"cnt":1},"284023":{"avg_pass":98.06,"avg_ovf":4.18,"cnt":21},"285101":{"avg_pass":93.72,"avg_ovf":3.74,"cnt":2}},"scatter":[{"pass":88.4,"ovf":5.2,"item":"284059","date":"2025-05-05"},{"pass":97.9,"ovf":3.2,"item":"284047","date":"2025-05-18"},{"pass":88.0,"ovf":2.9,"item":"285104","date":"2025-05-18"},{"pass":91.5,"ovf":2.5,"item":"284047","date":"2025-06-05"},{"pass":73.1,"ovf":3.7,"item":"284059","date":"2025-06-05"},{"pass":92.6,"ovf":3.7,"item":"284059","date":"2025-06-11"},{"pass":92.9,"ovf":2.4,"item":"284047","date":"2025-06-11"},{"pass":94.6,"ovf":2.7,"item":"284047","date":"2025-06-17"},{"pass":97.3,"ovf":3.6,"item":"284059","date":"2025-06-17"},{"pass":94.1,"ovf":2.6,"item":"284047","date":"2025-06-18"},{"pass":98.8,"ovf":3.1,"item":"284047","date":"2025-07-13"},{"pass":89.5,"ovf":4.4,"item":"284059","date":"2025-07-13"},{"pass":96.3,"ovf":2.8,"item":"284047","date":"2025-07-22"},{"pass":92.5,"ovf":3.4,"item":"284059","date":"2025-07-22"},{"pass":96.3,"ovf":3.1,"item":"284047","date":"2025-07-27"},{"pass":88.9,"ovf":3.4,"item":"284059","date":"2025-07-27"},{"pass":95.2,"ovf":3.3,"item":"284047","date":"2025-08-22"},{"pass":87.7,"ovf":3.5,"item":"284059","date":"2025-08-22"},{"pass":82.5,"ovf":5.0,"item":"284059","date":"2025-08-25"},{"pass":91.6,"ovf":3.8,"item":"284047","date":"2025-09-06"},{"pass":91.9,"ovf":3.6,"item":"284059","date":"2025-09-06"},{"pass":94.6,"ovf":3.3,"item":"284047","date":"2025-09-07"},{"pass":85.2,"ovf":4.3,"item":"284059","date":"2025-09-07"},{"pass":93.9,"ovf":4.0,"item":"284047","date":"2025-09-16"},{"pass":96.1,"ovf":4.4,"item":"284535","date":"2025-09-16"},{"pass":93.9,"ovf":2.7,"item":"284047","date":"2025-09-21"},{"pass":94.9,"ovf":3.2,"item":"284059","date":"2025-09-21"},{"pass":93.8,"ovf":2.5,"item":"284047","date":"2025-10-15"},{"pass":94.5,"ovf":3.6,"item":"284059","date":"2025-10-15"},{"pass":97.8,"ovf":3.6,"item":"284047","date":"2025-11-16"},{"pass":97.9,"ovf":3.1,"item":"284047","date":"2025-12-17"},{"pass":91.8,"ovf":2.7,"item":"285102","date":"2025-12-17"},{"pass":94.7,"ovf":2.5,"item":"284047","date":"2025-12-05"},{"pass":95.9,"ovf":3.7,"item":"284047","date":"2025-12-12"},{"pass":87.7,"ovf":4.1,"item":"285103","date":"2025-12-12"},{"pass":97.2,"ovf":4.0,"item":"284023","date":"2026-01-20"},{"pass":97.4,"ovf":2.9,"item":"284047","date":"2026-01-16"},{"pass":99.4,"ovf":3.7,"item":"284047","date":"2026-02-12"},{"pass":97.3,"ovf":3.6,"item":"284023","date":"2026-01-24"},{"pass":98.1,"ovf":4.4,"item":"284023","date":"2026-01-26"},{"pass":97.9,"ovf":4.0,"item":"284023","date":"2026-01-30"},{"pass":97.1,"ovf":2.6,"item":"284047","date":"2026-02-07"},{"pass":95.9,"ovf":4.6,"item":"285101","date":"2026-02-12"},{"pass":97.8,"ovf":4.6,"item":"284023","date":"2026-02-24"},{"pass":98.8,"ovf":4.9,"item":"284023","date":"2026-02-27"},{"pass":99.4,"ovf":3.7,"item":"284047","date":"2026-03-03"},{"pass":91.6,"ovf":2.9,"item":"285101","date":"2026-03-03"},{"pass":97.0,"ovf":4.3,"item":"284047","date":"2026-03-11"},{"pass":98.5,"ovf":3.7,"item":"284023","date":"2026-04-16"},{"pass":91.3,"ovf":4.1,"item":"284047","date":"2026-03-26"},{"pass":98.6,"ovf":4.4,"item":"284023","date":"2026-04-11"},{"pass":98.4,"ovf":4.5,"item":"284023","date":"2026-04-12"},{"pass":98.8,"ovf":4.5,"item":"284023","date":"2026-04-07"},{"pass":98.3,"ovf":3.8,"item":"284023","date":"2026-04-17"},{"pass":98.3,"ovf":4.1,"item":"284023","date":"2026-04-08"},{"pass":98.0,"ovf":4.2,"item":"284023","date":"2026-04-18"},{"pass":94.0,"ovf":4.4,"item":"284047","date":"2026-04-29"},{"pass":96.8,"ovf":3.7,"item":"284047","date":"2026-05-27"},{"pass":98.4,"ovf":4.6,"item":"284023","date":"2026-06-03"},{"pass":98.2,"ovf":4.3,"item":"284023","date":"2026-06-06"},{"pass":97.7,"ovf":4.4,"item":"284023","date":"2026-06-07"},{"pass":97.3,"ovf":3.8,"item":"284023","date":"2026-06-02"},{"pass":97.6,"ovf":3.8,"item":"284023","date":"2026-06-04"},{"pass":97.5,"ovf":4.0,"item":"284023","date":"2026-06-09"},{"pass":98.2,"ovf":3.8,"item":"284023","date":"2026-06-12"},{"pass":89.3,"ovf":3.6,"item":"284047","date":"2026-06-15"},{"pass":92.8,"ovf":3.4,"item":"284059","date":"2026-06-15"},{"pass":97.6,"ovf":5.1,"item":"284047","date":"2026-06-21"},{"pass":98.1,"ovf":4.3,"item":"284023","date":"2026-06-10"},{"pass":98.1,"ovf":4.5,"item":"284047","date":"2026-07-04"},{"pass":99.1,"ovf":4.5,"item":"284047","date":"2026-07-07"}]},"38612910":{"order_cnt":6,"avg_pass":94.4,"std_pass":4.17,"avg_overfill":6.28,"std_overfill":6.97,"avg_work_time":162.0,"items":["284047","284059","285103"],"item_stats":{"284047":{"avg_pass":96.93,"avg_ovf":8.99,"cnt":3},"284059":{"avg_pass":89.47,"avg_ovf":4.31,"cnt":1},"285103":{"avg_pass":93.06,"avg_ovf":3.19,"cnt":2}},"scatter":[{"pass":96.9,"ovf":20.4,"item":"284047","date":"2025-05-06"},{"pass":89.5,"ovf":4.3,"item":"284059","date":"2025-05-06"},{"pass":97.5,"ovf":2.4,"item":"285103","date":"2025-05-17"},{"pass":96.4,"ovf":3.9,"item":"284047","date":"2025-05-31"},{"pass":88.6,"ovf":4.0,"item":"285103","date":"2025-05-31"},{"pass":97.5,"ovf":2.7,"item":"284047","date":"2025-06-14"}]},"38602998":{"order_cnt":69,"avg_pass":94.15,"std_pass":3.85,"avg_overfill":3.85,"std_overfill":2.08,"avg_work_time":168.6,"items":["284047","284059","284535","285101","285102","285103","285104"],"item_stats":{"284047":{"avg_pass":95.0,"avg_ovf":3.41,"cnt":43},"284059":{"avg_pass":92.21,"avg_ovf":3.99,"cnt":17},"284535":{"avg_pass":96.32,"avg_ovf":12.57,"cnt":2},"285103":{"avg_pass":93.91,"avg_ovf":3.35,"cnt":3},"285104":{"avg_pass":90.91,"avg_ovf":2.86,"cnt":1},"285102":{"avg_pass":97.25,"avg_ovf":3.82,"cnt":1},"285101":{"avg_pass":90.69,"avg_ovf":4.4,"cnt":2}},"scatter":[{"pass":97.5,"ovf":2.9,"item":"284047","date":"2025-05-07"},{"pass":90.0,"ovf":4.4,"item":"284059","date":"2025-05-07"},{"pass":96.9,"ovf":3.3,"item":"284047","date":"2025-05-29"},{"pass":94.7,"ovf":3.3,"item":"284047","date":"2025-06-03"},{"pass":94.1,"ovf":3.8,"item":"284059","date":"2025-05-29"},{"pass":96.4,"ovf":2.9,"item":"284047","date":"2025-07-02"},{"pass":96.9,"ovf":3.7,"item":"284059","date":"2025-07-02"},{"pass":97.1,"ovf":3.5,"item":"284047","date":"2025-06-13"},{"pass":88.0,"ovf":5.6,"item":"284059","date":"2025-06-13"},{"pass":98.5,"ovf":3.2,"item":"284047","date":"2025-06-23"},{"pass":92.6,"ovf":3.6,"item":"284059","date":"2025-06-23"},{"pass":96.8,"ovf":3.4,"item":"284047","date":"2025-07-29"},{"pass":86.5,"ovf":4.1,"item":"284059","date":"2025-07-29"},{"pass":91.3,"ovf":2.7,"item":"284047","date":"2025-07-14"},{"pass":86.6,"ovf":3.9,"item":"284059","date":"2025-07-14"},{"pass":95.0,"ovf":19.8,"item":"284535","date":"2025-08-27"},{"pass":97.8,"ovf":3.3,"item":"284047","date":"2025-08-19"},{"pass":91.4,"ovf":3.5,"item":"285103","date":"2025-08-19"},{"pass":93.1,"ovf":3.1,"item":"285103","date":"2025-09-17"},{"pass":94.7,"ovf":3.1,"item":"284059","date":"2025-09-22"},{"pass":93.0,"ovf":2.9,"item":"284047","date":"2025-09-03"},{"pass":94.9,"ovf":4.0,"item":"284059","date":"2025-09-03"},{"pass":96.0,"ovf":3.2,"item":"284047","date":"2025-09-08"},{"pass":90.9,"ovf":2.9,"item":"285104","date":"2025-09-08"},{"pass":89.5,"ovf":3.5,"item":"284059","date":"2025-09-08"},{"pass":96.0,"ovf":3.1,"item":"284047","date":"2025-09-17"},{"pass":98.2,"ovf":3.4,"item":"284047","date":"2025-10-24"},{"pass":97.2,"ovf":3.4,"item":"285103","date":"2025-10-24"},{"pass":96.9,"ovf":3.1,"item":"284047","date":"2025-10-01"},{"pass":91.3,"ovf":4.4,"item":"284059","date":"2025-10-01"},{"pass":98.0,"ovf":3.8,"item":"284047","date":"2025-10-08"},{"pass":96.2,"ovf":3.6,"item":"284059","date":"2025-10-08"},{"pass":93.8,"ovf":4.1,"item":"284059","date":"2025-10-24"},{"pass":96.1,"ovf":3.2,"item":"284047","date":"2025-10-29"},{"pass":97.7,"ovf":5.3,"item":"284535","date":"2025-10-29"},{"pass":95.7,"ovf":3.4,"item":"284047","date":"2025-11-02"},{"pass":96.6,"ovf":3.0,"item":"284047","date":"2025-11-11"},{"pass":89.8,"ovf":4.2,"item":"284059","date":"2025-11-11"},{"pass":96.9,"ovf":3.2,"item":"284047","date":"2025-11-26"},{"pass":96.9,"ovf":3.6,"item":"284059","date":"2025-11-26"},{"pass":96.4,"ovf":2.9,"item":"284047","date":"2025-12-03"},{"pass":96.4,"ovf":3.4,"item":"284047","date":"2025-11-29"},{"pass":96.6,"ovf":3.3,"item":"284047","date":"2025-12-09"},{"pass":82.9,"ovf":null,"item":"284047","date":"2026-01-15"},{"pass":95.5,"ovf":3.3,"item":"284047","date":"2026-01-24"},{"pass":94.6,"ovf":3.3,"item":"284047","date":"2026-01-26"},{"pass":97.5,"ovf":2.8,"item":"284047","date":"2026-02-09"},{"pass":89.8,"ovf":null,"item":"284047","date":"2026-02-04"},{"pass":94.3,"ovf":2.3,"item":"284047","date":"2026-02-21"},{"pass":83.8,"ovf":3.9,"item":"284047","date":"2026-03-16"},{"pass":99.8,"ovf":3.3,"item":"284047","date":"2026-03-23"},{"pass":97.3,"ovf":3.8,"item":"285102","date":"2026-03-23"},{"pass":84.9,"ovf":4.3,"item":"284047","date":"2026-04-04"},{"pass":88.1,"ovf":5.0,"item":"285101","date":"2026-04-04"},{"pass":93.2,"ovf":3.8,"item":"285101","date":"2026-05-12"},{"pass":94.2,"ovf":4.2,"item":"284047","date":"2026-05-13"},{"pass":89.8,"ovf":4.5,"item":"284047","date":"2026-04-28"},{"pass":88.5,"ovf":5.8,"item":"284047","date":"2026-05-05"},{"pass":94.3,"ovf":4.0,"item":"284047","date":"2026-05-12"},{"pass":97.4,"ovf":3.5,"item":"284047","date":"2026-05-21"},{"pass":92.5,"ovf":4.0,"item":"284059","date":"2026-05-21"},{"pass":97.5,"ovf":3.7,"item":"284047","date":"2026-05-25"},{"pass":98.0,"ovf":3.6,"item":"284047","date":"2026-06-03"},{"pass":98.1,"ovf":3.2,"item":"284047","date":"2026-07-01"},{"pass":93.4,"ovf":3.7,"item":"284047","date":"2026-06-13"},{"pass":96.0,"ovf":3.1,"item":"284047","date":"2026-06-19"},{"pass":93.3,"ovf":4.3,"item":"284059","date":"2026-06-19"},{"pass":97.0,"ovf":3.7,"item":"284047","date":"2026-06-25"},{"pass":97.9,"ovf":3.0,"item":"284047","date":"2026-07-08"}]},"38606142":{"order_cnt":41,"avg_pass":94.73,"std_pass":3.42,"avg_overfill":3.97,"std_overfill":3.38,"avg_work_time":180.6,"items":["284023","284047","284059","284535","285101","285102","285103","285104"],"item_stats":{"285101":{"avg_pass":95.34,"avg_ovf":2.71,"cnt":2},"284047":{"avg_pass":94.83,"avg_ovf":3.32,"cnt":23},"284059":{"avg_pass":91.85,"avg_ovf":4.0,"cnt":7},"284535":{"avg_pass":96.21,"avg_ovf":14.77,"cnt":2},"285104":{"avg_pass":93.85,"avg_ovf":3.1,"cnt":1},"285103":{"avg_pass":94.11,"avg_ovf":3.4,"cnt":1},"284023":{"avg_pass":98.24,"avg_ovf":3.47,"cnt":4},"285102":{"avg_pass":95.7,"avg_ovf":3.23,"cnt":1}},"scatter":[{"pass":94.9,"ovf":2.1,"item":"285101","date":"2025-06-08"},{"pass":89.7,"ovf":2.6,"item":"284047","date":"2025-05-22"},{"pass":98.1,"ovf":3.5,"item":"284059","date":"2025-05-22"},{"pass":94.0,"ovf":2.9,"item":"284047","date":"2025-06-04"},{"pass":89.3,"ovf":4.1,"item":"284059","date":"2025-06-04"},{"pass":94.1,"ovf":2.6,"item":"284047","date":"2025-06-18"},{"pass":94.4,"ovf":2.3,"item":"284047","date":"2025-07-17"},{"pass":90.7,"ovf":4.4,"item":"284059","date":"2025-07-17"},{"pass":95.3,"ovf":23.8,"item":"284535","date":"2025-08-26"},{"pass":95.8,"ovf":3.3,"item":"285101","date":"2025-09-05"},{"pass":87.5,"ovf":4.3,"item":"284059","date":"2025-09-10"},{"pass":96.9,"ovf":3.1,"item":"284047","date":"2025-09-10"},{"pass":96.4,"ovf":2.8,"item":"284047","date":"2025-10-16"},{"pass":98.1,"ovf":3.7,"item":"284047","date":"2025-11-14"},{"pass":93.8,"ovf":9.1,"item":"284047","date":"2025-11-23"},{"pass":98.0,"ovf":3.3,"item":"284047","date":"2025-11-22"},{"pass":94.8,"ovf":2.7,"item":"284047","date":"2025-11-25"},{"pass":94.9,"ovf":3.9,"item":"284059","date":"2025-11-25"},{"pass":96.0,"ovf":2.9,"item":"284047","date":"2025-12-08"},{"pass":93.9,"ovf":3.1,"item":"285104","date":"2026-01-19"},{"pass":95.0,"ovf":2.9,"item":"284047","date":"2026-01-19"},{"pass":89.1,"ovf":3.6,"item":"284059","date":"2025-12-22"},{"pass":97.3,"ovf":2.9,"item":"284047","date":"2026-01-08"},{"pass":97.1,"ovf":5.7,"item":"284535","date":"2026-02-20"},{"pass":94.1,"ovf":3.4,"item":"285103","date":"2026-02-11"},{"pass":91.5,"ovf":1.4,"item":"284047","date":"2026-02-11"},{"pass":96.6,"ovf":3.1,"item":"284047","date":"2026-02-20"},{"pass":86.8,"ovf":4.0,"item":"284047","date":"2026-03-18"},{"pass":98.3,"ovf":3.8,"item":"284023","date":"2026-04-17"},{"pass":99.0,"ovf":3.7,"item":"284047","date":"2026-04-05"},{"pass":96.0,"ovf":3.0,"item":"284047","date":"2026-04-01"},{"pass":97.9,"ovf":2.9,"item":"284023","date":"2026-03-24"},{"pass":97.2,"ovf":2.9,"item":"284047","date":"2026-03-24"},{"pass":94.4,"ovf":4.0,"item":"284047","date":"2026-04-17"},{"pass":85.8,"ovf":3.6,"item":"284047","date":"2026-04-23"},{"pass":95.7,"ovf":3.2,"item":"285102","date":"2026-06-01"},{"pass":98.8,"ovf":3.8,"item":"284047","date":"2026-05-22"},{"pass":98.6,"ovf":3.8,"item":"284023","date":"2026-05-22"},{"pass":93.3,"ovf":4.3,"item":"284059","date":"2026-05-22"},{"pass":96.6,"ovf":3.1,"item":"284047","date":"2026-07-02"},{"pass":98.1,"ovf":3.4,"item":"284023","date":"2026-07-02"}]},"38613308":{"order_cnt":98,"avg_pass":95.89,"std_pass":3.98,"avg_overfill":3.64,"std_overfill":1.15,"avg_work_time":348.0,"items":["284023","284047","284059","284535","285101","285102","285103"],"item_stats":{"284047":{"avg_pass":95.94,"avg_ovf":3.54,"cnt":32},"284059":{"avg_pass":89.07,"avg_ovf":5.31,"cnt":10},"285101":{"avg_pass":94.47,"avg_ovf":2.92,"cnt":1},"284023":{"avg_pass":97.35,"avg_ovf":3.33,"cnt":51},"284535":{"avg_pass":96.51,"avg_ovf":5.54,"cnt":1},"285102":{"avg_pass":89.4,"avg_ovf":3.38,"cnt":1},"285103":{"avg_pass":95.61,"avg_ovf":4.15,"cnt":2}},"scatter":[{"pass":97.9,"ovf":4.5,"item":"284047","date":"2025-07-06"},{"pass":95.1,"ovf":2.5,"item":"284047","date":"2025-07-03"},{"pass":90.6,"ovf":4.2,"item":"284059","date":"2025-07-03"},{"pass":93.2,"ovf":2.9,"item":"284047","date":"2025-07-05"},{"pass":99.7,"ovf":2.8,"item":"284047","date":"2025-07-04"},{"pass":94.5,"ovf":4.4,"item":"284059","date":"2025-07-04"},{"pass":98.6,"ovf":3.3,"item":"284047","date":"2025-07-01"},{"pass":94.5,"ovf":2.9,"item":"285101","date":"2025-07-01"},{"pass":93.3,"ovf":3.0,"item":"284047","date":"2025-08-03"},{"pass":89.1,"ovf":3.8,"item":"284059","date":"2025-07-28"},{"pass":70.4,"ovf":6.2,"item":"284059","date":"2025-08-03"},{"pass":93.3,"ovf":4.1,"item":"284059","date":"2025-07-07"},{"pass":90.5,"ovf":4.4,"item":"284059","date":"2025-07-11"},{"pass":97.4,"ovf":3.1,"item":"284047","date":"2025-07-07"},{"pass":97.4,"ovf":4.3,"item":"284047","date":"2025-07-09"},{"pass":94.8,"ovf":4.0,"item":"284059","date":"2025-07-09"},{"pass":97.5,"ovf":3.6,"item":"284047","date":"2025-07-10"},{"pass":89.1,"ovf":4.4,"item":"284059","date":"2025-07-10"},{"pass":88.9,"ovf":4.4,"item":"284047","date":"2025-07-11"},{"pass":95.9,"ovf":2.6,"item":"284023","date":"2025-07-15"},{"pass":97.0,"ovf":3.1,"item":"284023","date":"2025-07-17"},{"pass":97.2,"ovf":3.1,"item":"284023","date":"2025-07-21"},{"pass":96.9,"ovf":3.1,"item":"284023","date":"2025-07-20"},{"pass":97.5,"ovf":3.5,"item":"284023","date":"2025-07-22"},{"pass":90.7,"ovf":3.1,"item":"284047","date":"2025-07-28"},{"pass":96.7,"ovf":3.8,"item":"284023","date":"2025-08-12"},{"pass":98.4,"ovf":4.2,"item":"284023","date":"2025-08-22"},{"pass":98.2,"ovf":4.2,"item":"284023","date":"2025-08-17"},{"pass":97.5,"ovf":4.1,"item":"284023","date":"2025-08-21"},{"pass":96.5,"ovf":5.5,"item":"284535","date":"2025-08-30"},{"pass":95.7,"ovf":3.5,"item":"284047","date":"2025-09-12"},{"pass":95.9,"ovf":3.0,"item":"284023","date":"2025-09-15"},{"pass":95.4,"ovf":2.9,"item":"284047","date":"2025-09-15"},{"pass":94.9,"ovf":4.3,"item":"284047","date":"2025-10-20"},{"pass":90.1,"ovf":12.8,"item":"284059","date":"2025-10-20"},{"pass":96.0,"ovf":3.0,"item":"284047","date":"2025-09-30"},{"pass":97.9,"ovf":2.7,"item":"284023","date":"2025-10-09"},{"pass":94.4,"ovf":3.6,"item":"284047","date":"2025-09-27"},{"pass":94.8,"ovf":3.4,"item":"284047","date":"2025-09-28"},{"pass":89.4,"ovf":3.4,"item":"285102","date":"2025-09-30"},{"pass":97.2,"ovf":2.5,"item":"284047","date":"2025-10-09"},{"pass":98.4,"ovf":2.7,"item":"284023","date":"2025-10-12"},{"pass":98.2,"ovf":2.9,"item":"284047","date":"2025-10-12"},{"pass":98.9,"ovf":2.3,"item":"284023","date":"2025-10-13"},{"pass":98.1,"ovf":2.5,"item":"284023","date":"2025-10-16"},{"pass":98.2,"ovf":2.7,"item":"284023","date":"2025-10-17"},{"pass":98.2,"ovf":3.1,"item":"284023","date":"2025-11-06"},{"pass":96.4,"ovf":2.9,"item":"284047","date":"2025-10-26"},{"pass":96.6,"ovf":2.7,"item":"284023","date":"2025-11-04"},{"pass":98.1,"ovf":3.0,"item":"284023","date":"2025-11-05"},{"pass":98.0,"ovf":3.1,"item":"284023","date":"2025-11-07"},{"pass":97.8,"ovf":3.2,"item":"284023","date":"2025-11-09"},{"pass":97.2,"ovf":3.7,"item":"284023","date":"2025-11-10"},{"pass":96.9,"ovf":2.8,"item":"284023","date":"2025-11-11"},{"pass":97.3,"ovf":3.0,"item":"284023","date":"2025-11-13"},{"pass":99.1,"ovf":3.0,"item":"284023","date":"2025-11-15"},{"pass":96.2,"ovf":3.4,"item":"284023","date":"2025-12-04"},{"pass":98.0,"ovf":3.8,"item":"284023","date":"2025-12-09"},{"pass":98.9,"ovf":3.6,"item":"284047","date":"2025-11-27"},{"pass":96.8,"ovf":3.4,"item":"284023","date":"2025-12-06"},{"pass":96.6,"ovf":3.1,"item":"284023","date":"2025-12-12"},{"pass":98.9,"ovf":4.2,"item":"284047","date":"2025-12-21"},{"pass":98.6,"ovf":3.8,"item":"284023","date":"2025-12-30"},{"pass":97.8,"ovf":3.7,"item":"284023","date":"2026-01-04"},{"pass":98.0,"ovf":3.5,"item":"284023","date":"2026-01-07"},{"pass":97.9,"ovf":3.6,"item":"284047","date":"2026-01-14"},{"pass":87.8,"ovf":null,"item":"284047","date":"2026-02-10"},{"pass":97.7,"ovf":3.5,"item":"284023","date":"2026-01-28"},{"pass":96.1,"ovf":4.4,"item":"284023","date":"2026-01-31"},{"pass":97.5,"ovf":3.3,"item":"284023","date":"2026-02-07"},{"pass":99.7,"ovf":3.6,"item":"284047","date":"2026-03-05"},{"pass":94.2,"ovf":4.1,"item":"284047","date":"2026-03-10"},{"pass":97.7,"ovf":3.0,"item":"284023","date":"2026-03-30"},{"pass":85.9,"ovf":3.1,"item":"284023","date":"2026-03-28"},{"pass":93.3,"ovf":3.3,"item":"284023","date":"2026-03-29"},{"pass":97.9,"ovf":4.1,"item":"284023","date":"2026-03-31"},{"pass":96.4,"ovf":2.6,"item":"284023","date":"2026-03-26"},{"pass":97.3,"ovf":2.8,"item":"284023","date":"2026-03-25"},{"pass":97.9,"ovf":2.9,"item":"284023","date":"2026-03-24"},{"pass":98.0,"ovf":4.0,"item":"284023","date":"2026-04-04"},{"pass":99.8,"ovf":4.1,"item":"284023","date":"2026-04-03"},{"pass":98.8,"ovf":4.1,"item":"284023","date":"2026-04-02"},{"pass":91.3,"ovf":4.1,"item":"284047","date":"2026-05-06"},{"pass":97.9,"ovf":2.8,"item":"284023","date":"2026-05-19"},{"pass":99.6,"ovf":4.0,"item":"284047","date":"2026-06-04"},{"pass":98.4,"ovf":3.7,"item":"284023","date":"2026-05-25"},{"pass":98.2,"ovf":3.6,"item":"284023","date":"2026-05-24"},{"pass":98.6,"ovf":3.4,"item":"284023","date":"2026-05-20"},{"pass":98.4,"ovf":3.8,"item":"284023","date":"2026-05-23"},{"pass":97.2,"ovf":3.6,"item":"284023","date":"2026-05-28"},{"pass":97.9,"ovf":3.7,"item":"284023","date":"2026-05-29"},{"pass":96.6,"ovf":3.9,"item":"284047","date":"2026-06-12"},{"pass":93.4,"ovf":4.2,"item":"285103","date":"2026-06-12"},{"pass":97.1,"ovf":4.7,"item":"284047","date":"2026-06-23"},{"pass":88.4,"ovf":4.9,"item":"284059","date":"2026-06-23"},{"pass":97.3,"ovf":3.7,"item":"284047","date":"2026-07-03"},{"pass":97.9,"ovf":3.6,"item":"284047","date":"2026-07-06"},{"pass":97.8,"ovf":4.1,"item":"285103","date":"2026-07-06"}]},"38613354":{"order_cnt":38,"avg_pass":92.5,"std_pass":6.11,"avg_overfill":4.6,"std_overfill":3.57,"avg_work_time":242.4,"items":["284047","284059","284535","285104"],"item_stats":{"284047":{"avg_pass":96.6,"avg_ovf":3.24,"cnt":18},"284059":{"avg_pass":87.25,"avg_ovf":5.96,"cnt":16},"284535":{"avg_pass":94.63,"avg_ovf":5.8,"cnt":3},"285104":{"avg_pass":96.41,"avg_ovf":3.68,"cnt":1}},"scatter":[{"pass":93.0,"ovf":3.2,"item":"284047","date":"2025-08-12"},{"pass":80.6,"ovf":4.3,"item":"284059","date":"2025-08-12"},{"pass":89.6,"ovf":3.9,"item":"284059","date":"2025-08-14"},{"pass":92.9,"ovf":4.3,"item":"284059","date":"2025-08-06"},{"pass":95.7,"ovf":3.4,"item":"284047","date":"2025-08-07"},{"pass":94.2,"ovf":5.9,"item":"284535","date":"2025-08-07"},{"pass":96.0,"ovf":3.3,"item":"284047","date":"2025-08-05"},{"pass":78.9,"ovf":4.4,"item":"284059","date":"2025-08-05"},{"pass":97.6,"ovf":3.3,"item":"284047","date":"2025-08-13"},{"pass":89.2,"ovf":4.1,"item":"284059","date":"2025-08-15"},{"pass":97.4,"ovf":3.2,"item":"284047","date":"2025-08-14"},{"pass":83.2,"ovf":4.4,"item":"284059","date":"2025-08-13"},{"pass":98.9,"ovf":3.4,"item":"284047","date":"2025-08-08"},{"pass":90.1,"ovf":3.5,"item":"284059","date":"2025-08-04"},{"pass":97.4,"ovf":3.4,"item":"284047","date":"2025-08-06"},{"pass":91.7,"ovf":5.5,"item":"284535","date":"2025-08-08"},{"pass":97.5,"ovf":3.8,"item":"284047","date":"2025-08-15"},{"pass":96.4,"ovf":3.7,"item":"285104","date":"2025-08-15"},{"pass":93.1,"ovf":10.5,"item":"284059","date":"2025-09-02"},{"pass":91.3,"ovf":2.0,"item":"284047","date":"2025-09-14"},{"pass":97.1,"ovf":3.5,"item":"284047","date":"2025-09-02"},{"pass":80.8,"ovf":4.2,"item":"284059","date":"2025-09-14"},{"pass":84.9,"ovf":4.7,"item":"284059","date":"2025-09-29"},{"pass":98.5,"ovf":3.6,"item":"284047","date":"2025-10-07"},{"pass":96.2,"ovf":4.8,"item":"284059","date":"2025-10-07"},{"pass":95.9,"ovf":2.7,"item":"284047","date":"2025-10-18"},{"pass":96.6,"ovf":3.7,"item":"284059","date":"2025-10-18"},{"pass":97.1,"ovf":3.6,"item":"284047","date":"2025-11-03"},{"pass":98.5,"ovf":3.2,"item":"284047","date":"2025-10-27"},{"pass":83.5,"ovf":4.4,"item":"284059","date":"2025-11-03"},{"pass":78.9,"ovf":4.7,"item":"284059","date":"2025-10-27"},{"pass":88.8,"ovf":5.1,"item":"284059","date":"2025-11-12"},{"pass":94.3,"ovf":3.1,"item":"284047","date":"2025-11-12"},{"pass":98.7,"ovf":3.5,"item":"284047","date":"2025-12-19"},{"pass":97.9,"ovf":6.0,"item":"284535","date":"2025-12-02"},{"pass":96.2,"ovf":3.1,"item":"284047","date":"2025-12-02"},{"pass":88.8,"ovf":24.4,"item":"284059","date":"2025-12-19"},{"pass":98.0,"ovf":3.3,"item":"284047","date":"2025-12-28"}]},"38614095":{"order_cnt":8,"avg_pass":92.81,"std_pass":3.76,"avg_overfill":3.05,"std_overfill":1.19,"avg_work_time":172.8,"items":["284047","284059","285102","285103","285104"],"item_stats":{"284059":{"avg_pass":93.51,"avg_ovf":4.83,"cnt":2},"284047":{"avg_pass":94.26,"avg_ovf":2.44,"cnt":3},"285102":{"avg_pass":87.68,"avg_ovf":2.22,"cnt":1},"285103":{"avg_pass":95.11,"avg_ovf":3.26,"cnt":1},"285104":{"avg_pass":89.92,"avg_ovf":1.9,"cnt":1}},"scatter":[{"pass":90.2,"ovf":4.9,"item":"284059","date":"2025-11-21"},{"pass":90.0,"ovf":2.1,"item":"284047","date":"2025-11-18"},{"pass":87.7,"ovf":2.2,"item":"285102","date":"2025-11-18"},{"pass":96.9,"ovf":4.7,"item":"284059","date":"2025-11-20"},{"pass":95.1,"ovf":3.3,"item":"285103","date":"2025-11-17"},{"pass":89.9,"ovf":1.9,"item":"285104","date":"2025-11-18"},{"pass":95.4,"ovf":2.3,"item":"284047","date":"2025-11-21"},{"pass":97.4,"ovf":3.0,"item":"284047","date":"2025-11-20"}]},"38614339":{"order_cnt":48,"avg_pass":94.97,"std_pass":4.33,"avg_overfill":3.64,"std_overfill":0.89,"avg_work_time":318.2,"items":["284023","284047","284059","284535"],"item_stats":{"284023":{"avg_pass":97.17,"avg_ovf":3.5,"cnt":26},"284047":{"avg_pass":93.72,"avg_ovf":3.41,"cnt":17},"284059":{"avg_pass":83.53,"avg_ovf":4.79,"cnt":3},"284535":{"avg_pass":94.33,"avg_ovf":5.72,"cnt":2}},"scatter":[{"pass":97.3,"ovf":3.6,"item":"284023","date":"2026-01-13"},{"pass":89.9,"ovf":3.6,"item":"284047","date":"2025-12-24"},{"pass":75.4,"ovf":5.4,"item":"284059","date":"2025-12-24"},{"pass":97.0,"ovf":3.3,"item":"284047","date":"2025-12-25"},{"pass":88.8,"ovf":3.2,"item":"284047","date":"2025-12-26"},{"pass":83.9,"ovf":4.4,"item":"284059","date":"2025-12-23"},{"pass":98.0,"ovf":3.3,"item":"284047","date":"2025-12-22"},{"pass":91.1,"ovf":2.6,"item":"284047","date":"2025-12-23"},{"pass":91.3,"ovf":4.5,"item":"284059","date":"2025-12-25"},{"pass":93.5,"ovf":4.8,"item":"284535","date":"2025-12-29"},{"pass":95.3,"ovf":2.4,"item":"284047","date":"2025-12-30"},{"pass":96.2,"ovf":4.0,"item":"284047","date":"2025-12-31"},{"pass":97.5,"ovf":3.4,"item":"284047","date":"2026-01-01"},{"pass":94.7,"ovf":3.1,"item":"284047","date":"2025-12-29"},{"pass":93.9,"ovf":3.0,"item":"284047","date":"2026-01-02"},{"pass":92.6,"ovf":6.4,"item":"284047","date":"2026-01-03"},{"pass":97.7,"ovf":3.9,"item":"284023","date":"2026-01-15"},{"pass":95.7,"ovf":3.3,"item":"284023","date":"2026-01-19"},{"pass":97.8,"ovf":3.4,"item":"284023","date":"2026-02-20"},{"pass":95.1,"ovf":2.4,"item":"284047","date":"2026-01-28"},{"pass":95.1,"ovf":6.6,"item":"284535","date":"2026-01-28"},{"pass":97.7,"ovf":3.7,"item":"284023","date":"2026-01-23"},{"pass":90.2,"ovf":2.7,"item":"284047","date":"2026-02-02"},{"pass":97.2,"ovf":4.0,"item":"284023","date":"2026-02-10"},{"pass":96.2,"ovf":4.5,"item":"284023","date":"2026-02-14"},{"pass":96.1,"ovf":2.7,"item":"284023","date":"2026-03-20"},{"pass":95.4,"ovf":2.7,"item":"284023","date":"2026-03-19"},{"pass":97.6,"ovf":2.7,"item":"284047","date":"2026-03-01"},{"pass":98.0,"ovf":3.4,"item":"284023","date":"2026-03-10"},{"pass":99.0,"ovf":3.3,"item":"284023","date":"2026-03-11"},{"pass":97.6,"ovf":3.3,"item":"284023","date":"2026-03-12"},{"pass":96.9,"ovf":3.8,"item":"284023","date":"2026-03-14"},{"pass":87.0,"ovf":3.8,"item":"284047","date":"2026-04-10"},{"pass":98.5,"ovf":3.7,"item":"284023","date":"2026-04-16"},{"pass":98.3,"ovf":4.0,"item":"284023","date":"2026-04-10"},{"pass":92.6,"ovf":4.9,"item":"284047","date":"2026-04-16"},{"pass":98.1,"ovf":3.1,"item":"284023","date":"2026-05-14"},{"pass":98.7,"ovf":3.7,"item":"284023","date":"2026-05-05"},{"pass":96.1,"ovf":3.8,"item":"284023","date":"2026-05-11"},{"pass":96.5,"ovf":3.3,"item":"284023","date":"2026-05-06"},{"pass":96.0,"ovf":3.3,"item":"284023","date":"2026-05-09"},{"pass":95.5,"ovf":3.3,"item":"284023","date":"2026-05-10"},{"pass":95.7,"ovf":3.4,"item":"284047","date":"2026-06-07"},{"pass":98.3,"ovf":3.3,"item":"284023","date":"2026-05-15"},{"pass":96.4,"ovf":2.8,"item":"284023","date":"2026-07-01"},{"pass":97.3,"ovf":4.0,"item":"284023","date":"2026-07-09"},{"pass":96.6,"ovf":3.7,"item":"284023","date":"2026-07-06"},{"pass":97.5,"ovf":3.6,"item":"284023","date":"2026-07-05"}]},"38602286":{"order_cnt":4,"avg_pass":97.17,"std_pass":1.25,"avg_overfill":4.54,"std_overfill":1.48,"avg_work_time":181.5,"items":["284047","284535"],"item_stats":{"284047":{"avg_pass":97.83,"avg_ovf":3.26,"cnt":2},"284535":{"avg_pass":96.5,"avg_ovf":5.83,"cnt":2}},"scatter":[{"pass":96.7,"ovf":3.2,"item":"284047","date":"2026-02-23"},{"pass":96.3,"ovf":5.8,"item":"284535","date":"2026-02-23"},{"pass":99.0,"ovf":3.3,"item":"284047","date":"2026-02-24"},{"pass":96.8,"ovf":5.9,"item":"284535","date":"2026-02-24"}]}};
+
+// ── palette ───────────────────────────────────────────────────────────────
+const C={
+  bg:'#EEF1F8',sur:'#fff',bd:'#D2D9E8',
+  t1:'#1A2035',t2:'#5A6685',t3:'#9BA8BE',
+  a:'#2E60DC',p:'#1A9E6C',w:'#C8870A',f:'#D43B3B',
+  good:'#1A9E6C',warn:'#C8870A',fail:'#D43B3B'
+};
+
+function passColor(p){
+  if(p>=96) return C.good;
+  if(p>=90) return C.warn;
+  return C.fail;
+}
+
+// sorted operators by avg_pass desc
+const OPS = Object.entries(DATA).sort((a,b)=>b[1].avg_pass - a[1].avg_pass);
+const N = OPS.length;
+
+// short IDs (last 5 chars)
+function shortId(uid){ return uid.slice(-5); }
+
+// ── KPIs ──────────────────────────────────────────────────────────────────
+const best  = OPS[0];
+const worst = OPS[OPS.length-1];
+const stable= OPS.slice().sort((a,b)=>a[1].std_pass-b[1].std_pass)[0];
+const busy  = OPS.slice().sort((a,b)=>b[1].order_cnt-a[1].order_cnt)[0];
+
+document.getElementById('kv-best').textContent  = best[1].avg_pass.toFixed(2)+'%';
+document.getElementById('ks-best').textContent  = '#'+shortId(best[0])+' · '+best[1].order_cnt+' 주문';
+document.getElementById('kv-worst').textContent = worst[1].avg_pass.toFixed(2)+'%';
+document.getElementById('ks-worst').textContent = '#'+shortId(worst[0])+' · '+worst[1].order_cnt+' 주문';
+document.getElementById('kv-stable').textContent= '#'+shortId(stable[0]);
+document.getElementById('ks-stable').textContent= 'σ='+stable[1].std_pass.toFixed(1)+'%';
+document.getElementById('kv-busy').textContent  = '#'+shortId(busy[0]);
+document.getElementById('ks-busy').textContent  = busy[1].order_cnt+' 주문 · '+busy[1].items.length+' 제품';
+
+// ── Operator tabs ──────────────────────────────────────────────────────────
+let selOp = null;
+const opList = document.getElementById('op-list');
+OPS.forEach(([uid,s])=>{
+  const btn = document.createElement('button');
+  btn.className='op-btn';
+  btn.dataset.uid=uid;
+  const cls = s.avg_pass>=96?'good':s.avg_pass>=90?'warn':'fail';
+  btn.innerHTML=`#${shortId(uid)}<span class="opbadge ${cls}">${s.avg_pass.toFixed(1)}%</span>`;
+  btn.addEventListener('click',()=>{
+    selOp = selOp===uid ? null : uid;
+    document.querySelectorAll('.op-btn').forEach(b=>b.classList.toggle('active',b.dataset.uid===selOp));
+    drawAll();
+  });
+  opList.appendChild(btn);
+});
+
+// ── Canvas helpers ─────────────────────────────────────────────────────────
+function resize(cv){
+  const dpr=window.devicePixelRatio||1;
+  const rc=cv.getBoundingClientRect();
+  cv.width=Math.round(rc.width*dpr);
+  cv.height=Math.round(rc.height*dpr);
+  const ctx=cv.getContext('2d');
+  ctx.scale(dpr,dpr);
+  return {ctx, w:rc.width, h:rc.height, dpr};
+}
+
+function grid(ctx,x0,y0,cw,ch,nx,ny){
+  ctx.strokeStyle='rgba(210,217,232,0.5)';ctx.lineWidth=0.5;
+  for(let i=0;i<=ny;i++){
+    const y=y0+i*ch/ny;
+    ctx.beginPath();ctx.moveTo(x0,y);ctx.lineTo(x0+cw,y);ctx.stroke();
+  }
+  for(let i=0;i<=nx;i++){
+    const x=x0+i*cw/nx;
+    ctx.beginPath();ctx.moveTo(x,y0);ctx.lineTo(x,y0+ch);ctx.stroke();
+  }
+}
+
+// ── Rank chart ────────────────────────────────────────────────────────────
+const cvRank = document.getElementById('cvRank');
+
+function drawRank(){
+  const {ctx,w,h}=resize(cvRank);
+  const pad={t:12,r:20,b:24,l:52};
+  const cw=w-pad.l-pad.r, ch=h-pad.t-pad.b;
+  const barH=Math.min(20, ch/N - 4);
+  const rowH=ch/N;
+
+  const minPass=Math.min(...OPS.map(o=>o[1].avg_pass-o[1].std_pass));
+  const maxPass=Math.min(100,Math.max(...OPS.map(o=>o[1].avg_pass+o[1].std_pass)));
+  const lo=Math.max(85,minPass-1);
+  const hi=Math.min(100,maxPass+0.5);
+  function xAt(v){ return pad.l + (v-lo)/(hi-lo)*cw; }
+
+  // grid lines + x labels
+  ctx.font='10px system-ui';ctx.fillStyle=C.t3;ctx.textAlign='center';
+  for(let v=86;v<=100;v+=2){
+    const x=xAt(v);
+    if(x<pad.l||x>pad.l+cw) continue;
+    ctx.strokeStyle='rgba(210,217,232,0.5)';ctx.lineWidth=0.5;
+    ctx.beginPath();ctx.moveTo(x,pad.t);ctx.lineTo(x,pad.t+ch);ctx.stroke();
+    ctx.fillText(v+'%',x,pad.t+ch+14);
+  }
+
+  OPS.forEach(([uid,s],i)=>{
+    const cy=pad.t+i*rowH+rowH/2;
+    const isHL=selOp===uid;
+
+    // row highlight
+    if(isHL){
+      ctx.fillStyle='rgba(46,96,220,0.06)';
+      ctx.fillRect(pad.l-4,pad.t+i*rowH,cw+8,rowH);
+    }
+
+    // σ whisker
+    const x0=xAt(Math.max(lo,s.avg_pass-s.std_pass));
+    const x1=xAt(Math.min(hi,s.avg_pass+s.std_pass));
+    const xm=xAt(s.avg_pass);
+    ctx.strokeStyle=isHL?'rgba(46,96,220,0.4)':'rgba(210,217,232,0.8)';
+    ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(x0,cy);ctx.lineTo(x1,cy);ctx.stroke();
+    ctx.strokeStyle=ctx.strokeStyle;
+    ctx.lineWidth=0.8;
+    ctx.beginPath();ctx.moveTo(x0,cy-5);ctx.lineTo(x0,cy+5);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(x1,cy-5);ctx.lineTo(x1,cy+5);ctx.stroke();
+
+    // bar
+    const bx=xAt(lo);
+    const bw=Math.max(1,xm-bx);
+    const by=cy-barH/2;
+    ctx.fillStyle=passColor(s.avg_pass)+(isHL?'EE':'88');
+    ctx.beginPath();ctx.roundRect(bx,by,bw,barH,2);ctx.fill();
+
+    // dot at mean
+    ctx.fillStyle=passColor(s.avg_pass);
+    ctx.beginPath();ctx.arc(xm,cy,3.5,0,Math.PI*2);ctx.fill();
+
+    // operator label
+    ctx.font=isHL?'bold 10px system-ui':'10px system-ui';
+    ctx.fillStyle=isHL?C.t1:C.t2;
+    ctx.textAlign='right';
+    ctx.fillText('#'+shortId(uid),pad.l-6,cy+3.5);
+
+    // value label
+    ctx.fillStyle=isHL?C.t1:C.t3;
+    ctx.textAlign='left';
+    ctx.font='10px system-ui';
+    ctx.fillText(s.avg_pass.toFixed(1)+'%',xm+6,cy+3.5);
+  });
+
+  // axis line
+  ctx.strokeStyle=C.bd;ctx.lineWidth=1;
+  ctx.beginPath();ctx.moveTo(pad.l,pad.t);ctx.lineTo(pad.l,pad.t+ch);ctx.stroke();
+}
+
+// ── Scatter chart ─────────────────────────────────────────────────────────
+const cvScatter=document.getElementById('cvScatter');
+let scatterHits=[];
+
+function drawScatter(){
+  const {ctx,w,h}=resize(cvScatter);
+  const pad={t:16,r:24,b:36,l:54};
+  const cw=w-pad.l-pad.r, ch=h-pad.t-pad.b;
+
+  const times=OPS.map(o=>o[1].avg_work_time).filter(v=>v>0);
+  const passes=OPS.map(o=>o[1].avg_pass);
+  const tMin=Math.min(...times)*0.9, tMax=Math.max(...times)*1.05;
+  const pMin=Math.min(...passes)-1, pMax=Math.min(100,Math.max(...passes)+0.5);
+  const maxOrders=Math.max(...OPS.map(o=>o[1].order_cnt));
+
+  function xAt(t){ return pad.l+(t-tMin)/(tMax-tMin)*cw; }
+  function yAt(p){ return pad.t+ch-(p-pMin)/(pMax-pMin)*ch; }
+
+  // grid
+  ctx.font='10px system-ui';ctx.fillStyle=C.t3;
+  // y grid
+  for(let p=86;p<=100;p+=2){
+    const y=yAt(p);if(y<pad.t||y>pad.t+ch) continue;
+    ctx.strokeStyle='rgba(210,217,232,0.5)';ctx.lineWidth=0.5;
+    ctx.beginPath();ctx.moveTo(pad.l,y);ctx.lineTo(pad.l+cw,y);ctx.stroke();
+    ctx.textAlign='right';ctx.fillText(p+'%',pad.l-4,y+3.5);
+  }
+  // x ticks
+  ctx.textAlign='center';
+  const tStep=Math.round((tMax-tMin)/5/60)*60||60;
+  for(let t=Math.ceil(tMin/60)*60;t<=tMax;t+=tStep){
+    const x=xAt(t);if(x<pad.l||x>pad.l+cw) continue;
+    ctx.strokeStyle='rgba(210,217,232,0.5)';ctx.lineWidth=0.5;
+    ctx.beginPath();ctx.moveTo(x,pad.t);ctx.lineTo(x,pad.t+ch);ctx.stroke();
+    ctx.fillText(Math.round(t/60)+'h',x,pad.t+ch+14);
+  }
+  ctx.fillText('평균 작업시간',pad.l+cw/2,pad.t+ch+28);
+
+  // axis labels
+  ctx.save();ctx.translate(14,pad.t+ch/2);ctx.rotate(-Math.PI/2);
+  ctx.textAlign='center';ctx.fillText('평균 합격률',0,0);ctx.restore();
+
+  scatterHits=[];
+  OPS.forEach(([uid,s])=>{
+    if(!s.avg_work_time) return;
+    const x=xAt(s.avg_work_time);
+    const y=yAt(s.avg_pass);
+    const r=4+Math.sqrt(s.order_cnt/maxOrders)*14;
+    const isHL=selOp===uid;
+    const col=passColor(s.avg_pass);
+
+    ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);
+    ctx.fillStyle=col+(isHL?'EE':'55');
+    ctx.strokeStyle=col+(isHL?'':'88');
+    ctx.lineWidth=isHL?2:1;
+    ctx.fill();ctx.stroke();
+
+    if(isHL||N<=12){
+      ctx.font=isHL?'bold 10px system-ui':'10px system-ui';
+      ctx.fillStyle=isHL?C.t1:C.t2;
+      ctx.textAlign='center';
+      ctx.fillText('#'+shortId(uid),x,y-r-3);
+    }
+    scatterHits.push({x,y,r,uid,s});
+  });
+}
+
+// ── Heatmap ───────────────────────────────────────────────────────────────
+const cvHeat=document.getElementById('cvHeat');
+const ALL_ITEMS=['284023','284047','284059','284535','284760','284961','285101','285102','285103','285104'];
+let heatHits=[];
+
+function drawHeat(){
+  const {ctx,w,h}=resize(cvHeat);
+  const labelW=52, labelH=32, pad={t:8,r:16,b:8,l:labelW};
+  const cw=w-pad.l-pad.r, ch=h-pad.t-pad.b;
+  const cellW=cw/ALL_ITEMS.length;
+  const cellH=ch/N;
+
+  ctx.font='10px system-ui';ctx.fillStyle=C.t3;
+
+  // Item headers
+  ALL_ITEMS.forEach((item,j)=>{
+    const x=pad.l+j*cellW+cellW/2;
+    ctx.textAlign='center';
+    ctx.fillText(item.slice(-4),x,pad.t+10);
+  });
+
+  heatHits=[];
+  OPS.forEach(([uid,s],i)=>{
+    const cy=pad.t+labelH+i*cellH;
+    const isHL=selOp===uid;
+
+    // operator label
+    ctx.font=isHL?'bold 10px system-ui':'10px system-ui';
+    ctx.fillStyle=isHL?C.t1:C.t2;
+    ctx.textAlign='right';
+    ctx.fillText('#'+shortId(uid),pad.l-4,cy+cellH/2+3.5);
+
+    ALL_ITEMS.forEach((item,j)=>{
+      const cx=pad.l+j*cellW;
+      const ist=s.item_stats[item];
+      const pad2=2;
+      const rx=cx+pad2, ry=cy+pad2, rw=cellW-pad2*2, rh=cellH-pad2*2;
+
+      if(!ist){
+        ctx.fillStyle='rgba(210,217,232,0.3)';
+        ctx.beginPath();ctx.roundRect(rx,ry,rw,rh,3);ctx.fill();
+      } else {
+        const p=ist.avg_pass;
+        const col=passColor(p);
+        const alpha=isHL?'EE':'99';
+        ctx.fillStyle=col+alpha;
+        ctx.beginPath();ctx.roundRect(rx,ry,rw,rh,3);ctx.fill();
+        // value text
+        ctx.font=(rw>40)?'9px system-ui':'8px system-ui';
+        ctx.fillStyle=isHL?'#fff':'rgba(255,255,255,0.9)';
+        ctx.textAlign='center';
+        ctx.fillText(p.toFixed(1),rx+rw/2,ry+rh/2+3.5);
+        heatHits.push({x:rx,y:ry,w:rw,h:rh,uid,item,ist});
+      }
+    });
+  });
+}
+
+// ── draw all ──────────────────────────────────────────────────────────────
+function drawAll(){
+  drawRank();
+  drawScatter();
+  drawHeat();
+}
+
+// ── Tooltip ───────────────────────────────────────────────────────────────
+const tip=document.getElementById('tip');
+function showTip(ev,html){
+  tip.innerHTML=html;tip.style.display='block';
+  const mx=ev.clientX+14, my=ev.clientY-8;
+  tip.style.left=(mx+tip.offsetWidth>window.innerWidth?mx-tip.offsetWidth-22:mx)+'px';
+  tip.style.top=(my+tip.offsetHeight>window.innerHeight?my-tip.offsetHeight:my)+'px';
+}
+function hideTip(){tip.style.display='none';}
+
+function tipHtml(uid,s,extra=''){
+  const col=passColor(s.avg_pass);
+  return `<div class="tip-date">#${shortId(uid)}</div>
+<div class="tip-row"><span>합격률 평균</span><b style="color:${col}">${s.avg_pass.toFixed(2)}%</b></div>
+<div class="tip-row"><span>합격률 σ</span><b>${s.std_pass.toFixed(2)}%</b></div>
+<div class="tip-row"><span>과충전율 평균</span><b>${s.avg_overfill.toFixed(2)}%</b></div>
+<div class="tip-row"><span>평균 작업시간</span><b>${s.avg_work_time.toFixed(0)} min</b></div>
+<div class="tip-row"><span>주문 건수</span><b>${s.order_cnt}</b></div>
+${extra}`;
+}
+
+cvRank.addEventListener('mousemove',ev=>{
+  const rc=cvRank.getBoundingClientRect();
+  const mx=ev.clientX-rc.left, my=ev.clientY-rc.top;
+  const rowH=(rc.height-12-24)/N;
+  const i=Math.floor((my-12)/rowH);
+  if(i<0||i>=N){hideTip();return;}
+  const [uid,s]=OPS[i];
+  showTip(ev,tipHtml(uid,s));
+});
+cvRank.addEventListener('mouseleave',hideTip);
+
+cvScatter.addEventListener('mousemove',ev=>{
+  const rc=cvScatter.getBoundingClientRect();
+  const mx=ev.clientX-rc.left,my=ev.clientY-rc.top;
+  let found=null;
+  for(const h of scatterHits){
+    if(Math.hypot(mx-h.x,my-h.y)<=h.r+4){found=h;break;}
+  }
+  if(!found){hideTip();return;}
+  showTip(ev,tipHtml(found.uid,found.s,`<div class="tip-row"><span>제품 수</span><b>${found.s.items.length}</b></div>`));
+});
+cvScatter.addEventListener('mouseleave',hideTip);
+
+cvHeat.addEventListener('mousemove',ev=>{
+  const rc=cvHeat.getBoundingClientRect();
+  const mx=ev.clientX-rc.left,my=ev.clientY-rc.top;
+  let found=null;
+  for(const h of heatHits){
+    if(mx>=h.x&&mx<=h.x+h.w&&my>=h.y&&my<=h.y+h.h){found=h;break;}
+  }
+  if(!found){hideTip();return;}
+  const col=passColor(found.ist.avg_pass);
+  showTip(ev,`<div class="tip-date">#${shortId(found.uid)} × ${found.item}</div>
+<div class="tip-row"><span>합격률</span><b style="color:${col}">${found.ist.avg_pass.toFixed(2)}%</b></div>
+<div class="tip-row"><span>과충전율</span><b>${found.ist.avg_ovf.toFixed(2)}%</b></div>
+<div class="tip-row"><span>주문 건수</span><b>${found.ist.cnt}</b></div>`);
+});
+cvHeat.addEventListener('mouseleave',hideTip);
+
+// ── ResizeObserver ────────────────────────────────────────────────────────
+const ro=new ResizeObserver(()=>drawAll());
+ro.observe(document.getElementById('app'));
+drawAll();
+</script>

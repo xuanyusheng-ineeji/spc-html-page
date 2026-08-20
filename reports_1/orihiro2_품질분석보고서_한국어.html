@@ -1,0 +1,701 @@
+﻿<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>오리히로2호 — 10품목 충진 품질 횡단 분석 보고서</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#EDF0F7;
+  --panel:#FFFFFF;
+  --border:#D0D5E8;
+  --border-light:#E8EBFA;
+  --text:#131926;
+  --text2:#4E5673;
+  --text3:#8B93B2;
+  --blue:#1E40AF;
+  --blue-lt:#DBEAFE;
+  --blue-md:#3B82F6;
+  --green:#166534;
+  --green-lt:#DCFCE7;
+  --green-md:#16A34A;
+  --amber:#92400E;
+  --amber-lt:#FEF3C7;
+  --amber-md:#D97706;
+  --red:#991B1B;
+  --red-lt:#FEE2E2;
+  --red-md:#DC2626;
+  --purple:#5B21B6;
+  --purple-lt:#EDE9FE;
+  --purple-md:#7C3AED;
+  --mono:ui-monospace,'Cascadia Code','D2Coding','Courier New',monospace;
+}
+body{
+  background:var(--bg);
+  color:var(--text);
+  font-family:'Apple SD Gothic Neo','Malgun Gothic','맑은 고딕',system-ui,-apple-system,sans-serif;
+  font-size:14px;
+  line-height:1.6;
+  padding:32px 20px 64px;
+}
+.app{max-width:1100px;margin:0 auto}
+.hdr{margin-bottom:28px;padding-bottom:20px;border-bottom:2px solid var(--border)}
+.hdr-tag{font-size:10px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:var(--blue-md);margin-bottom:6px}
+.hdr-title{font-size:22px;font-weight:800;letter-spacing:-.04em;color:var(--text);line-height:1.25}
+.hdr-sub{font-size:12px;color:var(--text3);margin-top:4px;font-family:var(--mono)}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:18px}
+.kpi{background:var(--panel);border:1.5px solid var(--border);border-radius:8px;padding:14px 16px;position:relative;overflow:hidden}
+.kpi::before{content:'';position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--blue-md)}
+.kpi-v{font-size:24px;font-weight:800;font-family:var(--mono);letter-spacing:-.04em;color:var(--text);font-variant-numeric:tabular-nums;line-height:1}
+.kpi-l{font-size:10px;font-weight:600;letter-spacing:.1em;color:var(--text3);margin-top:5px}
+.sec{margin-bottom:20px}
+.sec-hdr{display:flex;align-items:baseline;gap:10px;margin-bottom:14px}
+.sec-title{font-size:13px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--text)}
+.sec-sub{font-size:11px;color:var(--text3)}
+.panel{background:var(--panel);border:1.5px solid var(--border);border-radius:10px;padding:20px}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+canvas{display:block;width:100% !important}
+.cards{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.card{background:var(--panel);border:1.5px solid var(--border);border-radius:8px;padding:14px 14px 12px;position:relative;overflow:hidden}
+.card-stripe{position:absolute;left:0;top:0;bottom:0;width:4px}
+.card-id{font-size:9px;font-family:var(--mono);color:var(--text3);letter-spacing:.06em}
+.card-name{font-size:13px;font-weight:700;color:var(--text);margin:2px 0 1px;line-height:1.2}
+.card-meta{display:flex;gap:12px;margin-top:10px;flex-wrap:wrap}
+.cm{text-align:center}
+.cm-v{font-size:16px;font-weight:800;font-family:var(--mono);letter-spacing:-.03em;font-variant-numeric:tabular-nums}
+.cm-l{font-size:9px;font-weight:600;letter-spacing:.08em;color:var(--text3);margin-top:1px}
+.badge{display:inline-flex;align-items:center;gap:3px;padding:2px 7px;border-radius:4px;font-size:10px;font-weight:700;font-family:var(--mono)}
+.badge-ok{background:var(--green-lt);color:var(--green-md)}
+.badge-warn{background:var(--amber-lt);color:var(--amber-md)}
+.badge-err{background:var(--red-lt);color:var(--red-md)}
+.badge-purple{background:var(--purple-lt);color:var(--purple-md)}
+.badge-grey{background:#F1F3FA;color:var(--text3)}
+.note-box{background:var(--amber-lt);border:1px solid #FCD34D;border-radius:7px;padding:10px 14px;font-size:11px;color:var(--amber);margin-top:10px;line-height:1.6}
+.tw{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:12px}
+thead th{padding:6px 10px;text-align:left;font-size:9.5px;font-weight:700;letter-spacing:.1em;color:var(--text3);border-bottom:2px solid var(--border);white-space:nowrap}
+thead th.num{text-align:right}
+tbody tr{border-bottom:1px solid var(--border-light);transition:background .1s}
+tbody tr:hover{background:#F5F7FF}
+tbody td{padding:7px 10px;font-family:var(--mono);font-variant-numeric:tabular-nums;white-space:nowrap}
+tbody td.label{font-family:'Apple SD Gothic Neo','Malgun Gothic',system-ui}
+tbody td.num{text-align:right}
+@media(max-width:700px){.two-col,.cards,.kpis{grid-template-columns:1fr}}
+.psel{display:flex;gap:6px;flex-wrap:wrap;margin-top:12px}
+.pchip{display:inline-flex;align-items:center;gap:5px;padding:4px 10px 4px 7px;border:1.5px solid var(--border);border-radius:20px;cursor:pointer;font-size:10px;font-weight:600;background:var(--panel);transition:border-color .15s,background .15s,opacity .15s;user-select:none;white-space:nowrap;opacity:.55}
+.pchip:hover{opacity:.8}
+.pchip.on{opacity:1;background:#F0F4FF;border-color:currentColor}
+.pchip-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
+.pchip-nm{color:var(--text2)}.pchip.on .pchip-nm{color:var(--text)}
+</style>
+</head>
+<body>
+<div class="app">
+
+<header class="hdr">
+  <div class="hdr-tag">Orihiro #2 · EQUIP: Z01000030 · PROC: P5050</div>
+  <h1 class="hdr-title">오리히로2호 충진기 — 10개 품목 충진 품질 횡단 분석 보고서</h1>
+  <div class="hdr-sub">데이터 기간: 2025년 4월 ~ 2026년 7월 &nbsp;·&nbsp; 데이터 출처: MES 생산 실적 데이터베이스</div>
+  <div class="kpis">
+    <div class="kpi"><div class="kpi-v">10</div><div class="kpi-l">충진 품목 수</div></div>
+    <div class="kpi"><div class="kpi-v" style="font-size:18px">5,272,106</div><div class="kpi-l">총 계량 수 (개)</div></div>
+    <div class="kpi"><div class="kpi-v">1,053</div><div class="kpi-l">총 작업 횟수</div></div>
+    <div class="kpi"><div class="kpi-v" style="color:var(--green-md)">95.4%</div><div class="kpi-l">전체 평균 합격률</div></div>
+  </div>
+</header>
+
+<section class="sec">
+  <div class="sec-hdr">
+    <span class="sec-title">합격률 순위</span>
+    <span class="sec-sub">UCL·LCL 동시 통과 기준</span>
+  </div>
+  <div class="panel" style="padding:16px 20px">
+    <canvas id="cvRank" height="260"></canvas>
+  </div>
+  <div class="note-box">
+    &#9888; <strong>[수출]캄보디아_연유크림 (284760)</strong>: MES 데이터에서 UCL 값이 0으로 잘못 입력되어 합격률 0% 로 표시됨 (실제 불합격이 아님). 실제 평균 중량은 250.9g (STD 240g 대비 +10.9g). MES에서 UCL 파라미터 수정 후 재평가 필요.
+  </div>
+</section>
+
+<section class="sec">
+  <div class="two-col">
+    <div>
+      <div class="sec-hdr"><span class="sec-title">관리한계 초과율</span><span class="sec-sub">UCL 초과(과중) vs LCL 미달(경량)</span></div>
+      <div class="panel" style="padding:16px 20px"><canvas id="cvLimit" height="260"></canvas></div>
+    </div>
+</section>
+
+<section class="sec">
+  <div class="sec-hdr">
+    <span class="sec-title">월별 합격률 추이</span>
+    <span class="sec-sub">주요 3품목 (생산량 기준)</span>
+  </div>
+  <div class="panel" style="padding:16px 20px">
+    <canvas id="cvTrend" height="240"></canvas>
+    <div id="trendSel" class="psel"></div>
+  </div>
+</section>
+<section class="sec">
+  <div class="sec-hdr">
+    <span class="sec-title">불합격 유형 구성</span>
+    <span class="sec-sub">품목별 UCL초과(과충전) vs LCL초과(부족충전) 비율</span>
+  </div>
+  <div class="panel" style="padding:16px 20px">
+    <canvas id="cvDefect" height="300"></canvas>
+  </div>
+</section>
+
+<section class="sec">
+  <div class="sec-hdr">
+    <span class="sec-title">평균 중량 편차</span>
+    <span class="sec-sub">품목별 평균 충전 중량과 기준 중량의 편차 (g)</span>
+  </div>
+  <div class="panel" style="padding:16px 20px">
+    <canvas id="cvDev" height="220"></canvas>
+  </div>
+</section>
+<section class="sec">
+  <div class="sec-hdr">
+    <span class="sec-title">과충전 손실 분석</span>
+    <span class="sec-sub">누적 과충전 총량 56,930 kg = 56.93 톤 (실적 데이터 기준)</span>
+  </div>
+  <div class="kpis" style="margin:0 0 16px">
+    <div class="kpi" style="border-top:3px solid #DC2626">
+      <div class="kpi-label">총 과충전량</div>
+      <div class="kpi-value" style="color:#DC2626;font-size:1.35rem">56.93 톤</div>
+      <div class="kpi-sub">56,930 kg</div>
+    </div>
+    <div class="kpi" style="border-top:3px solid #D97706">
+      <div class="kpi-label">최대 손실 품목</div>
+      <div class="kpi-value" style="color:#D97706;font-size:1.35rem">연유크림</div>
+      <div class="kpi-sub">37,332 kg</div>
+    </div>
+    <div class="kpi" style="border-top:3px solid #7C3AED">
+      <div class="kpi-label">평균 과충전율</div>
+      <div class="kpi-value" style="color:#7C3AED;font-size:1.35rem">3.71%</div>
+      <div class="kpi-sub">기준 중량 대비</div>
+    </div>
+    <div class="kpi" style="border-top:3px solid #0891B2">
+      <div class="kpi-label">단위 최대 편차</div>
+      <div class="kpi-value" style="color:#0891B2;font-size:1.35rem">연유크림F</div>
+      <div class="kpi-sub">+35.5 g/개</div>
+    </div>
+  </div>
+  <div class="panel" style="padding:16px 20px;margin-bottom:12px">
+    <div class="sec-hdr" style="margin-bottom:8px">
+      <span style="font-size:12px;font-weight:700;color:var(--text)">품목별 과충전 총량 (kg)</span>
+    </div>
+    <canvas id="cvLoss1" height="260"></canvas>
+  </div>
+  <div class="panel" style="padding:16px 20px">
+    <div class="sec-hdr" style="margin-bottom:8px">
+      <span style="font-size:12px;font-weight:700;color:var(--text)">단위 평균 과충전 (g) 및 과충전율 (%)</span>
+    </div>
+    <canvas id="cvLoss2" height="200"></canvas>
+  </div>
+</section>
+
+
+
+<section class="sec">
+  <div class="sec-hdr"><span class="sec-title">품목별 상세 지표</span></div>
+  <div class="panel" style="padding:0">
+    <div class="tw">
+      <table>
+        <thead><tr>
+          <th>품목코드</th>
+          <th>품목명</th>
+          <th class="num">작업횟수</th>
+          <th class="num">총계량</th>
+          <th class="num">합격률</th>
+          <th class="num">UCL 초과율</th>
+          <th class="num">LCL 미달율</th>
+          <th class="num">평균중량</th>
+          <th class="num">편차</th>
+          <th>상태</th>
+        </tr></thead>
+        <tbody id="tbl"></tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<section class="sec">
+  <div class="sec-hdr"><span class="sec-title">품목 카드</span></div>
+  <div class="cards" id="cards"></div>
+</section>
+
+<div style="font-size:10px;color:var(--text3);text-align:center;margin-top:32px;font-family:var(--mono)">
+  데이터 출처: WRK_WEIGHT_SUMMARY_ORDER · CHK_ORIHIRO · MST_ITEM (Z01000030 필터) &nbsp;|&nbsp; 생성일: 2026-07-14
+</div>
+</div>
+
+<script>
+const DATA = {
+  "284023":{"cd":"284023","name":"연유크림","std":300,"lcl":300,"ucl":330,"orders":406,"data_cnt":3832571,"ucl_over":8457,"lcl_over":105990,"ucl_rate":0.22,"lcl_rate":2.77,"pass_rate":97.01,"avg_weight":309.74,"weight_dev":9.74,"work_time":220733,"monthly":[{"month":"2025-04","pass_rate":98.16},{"month":"2025-05","pass_rate":97.97},{"month":"2025-06","pass_rate":95.9},{"month":"2025-07","pass_rate":95.43},{"month":"2025-08","pass_rate":96.0},{"month":"2025-09","pass_rate":97.02},{"month":"2025-10","pass_rate":97.34},{"month":"2025-11","pass_rate":96.82},{"month":"2025-12","pass_rate":96.97},{"month":"2026-01","pass_rate":97.18},{"month":"2026-02","pass_rate":97.52},{"month":"2026-03","pass_rate":96.93},{"month":"2026-04","pass_rate":98.06},{"month":"2026-05","pass_rate":97.61},{"month":"2026-06","pass_rate":97.87},{"month":"2026-07","pass_rate":97.51}]},
+  "284047":{"cd":"284047","name":"연유토핑물","std":300,"lcl":300,"ucl":330,"orders":399,"data_cnt":507492,"ucl_over":4720,"lcl_over":21072,"ucl_rate":0.93,"lcl_rate":4.15,"pass_rate":94.92,"avg_weight":312.86,"weight_dev":12.86,"work_time":36389,"monthly":[{"month":"2025-04","pass_rate":96.38},{"month":"2025-05","pass_rate":94.93},{"month":"2025-06","pass_rate":94.93},{"month":"2025-07","pass_rate":95.54},{"month":"2025-08","pass_rate":95.47},{"month":"2025-09","pass_rate":93.66},{"month":"2025-10","pass_rate":96.38},{"month":"2025-11","pass_rate":95.3},{"month":"2025-12","pass_rate":95.78},{"month":"2026-01","pass_rate":94.65},{"month":"2026-02","pass_rate":95.07},{"month":"2026-03","pass_rate":93.64},{"month":"2026-04","pass_rate":92.02},{"month":"2026-05","pass_rate":93.41},{"month":"2026-06","pass_rate":96.36},{"month":"2026-07","pass_rate":97.92}]},
+  "284059":{"cd":"284059","name":"[수출]뉴아몬드크림","std":250,"lcl":250,"ucl":270,"orders":157,"data_cnt":716208,"ucl_over":57015,"lcl_over":28892,"ucl_rate":7.96,"lcl_rate":4.03,"pass_rate":88.01,"avg_weight":263.82,"weight_dev":13.82,"work_time":55112,"monthly":[{"month":"2025-05","pass_rate":90.45},{"month":"2025-06","pass_rate":90.78},{"month":"2025-07","pass_rate":90.16},{"month":"2025-08","pass_rate":85.17},{"month":"2025-09","pass_rate":87.56},{"month":"2025-10","pass_rate":90.92},{"month":"2025-11","pass_rate":90.08},{"month":"2025-12","pass_rate":87.71},{"month":"2026-05","pass_rate":56.0},{"month":"2026-06","pass_rate":89.45}]},
+  "284535":{"cd":"284535","name":"[수출]마늘토핑","std":200,"lcl":200,"ucl":230,"orders":28,"data_cnt":126074,"ucl_over":1438,"lcl_over":6120,"ucl_rate":1.14,"lcl_rate":4.85,"pass_rate":94.01,"avg_weight":213.36,"weight_dev":13.36,"work_time":8916,"monthly":[{"month":"2025-05","pass_rate":91.54},{"month":"2025-06","pass_rate":90.19},{"month":"2025-07","pass_rate":93.87},{"month":"2025-08","pass_rate":93.77},{"month":"2025-09","pass_rate":96.11},{"month":"2025-10","pass_rate":94.35},{"month":"2025-12","pass_rate":95.71},{"month":"2026-01","pass_rate":94.37},{"month":"2026-02","pass_rate":96.81},{"month":"2026-06","pass_rate":96.58}]},
+  "285101":{"cd":"285101","name":"BK)냉아몬드크림","std":300,"lcl":300,"ucl":330,"orders":16,"data_cnt":23874,"ucl_over":402,"lcl_over":1380,"ucl_rate":1.68,"lcl_rate":5.78,"pass_rate":92.54,"avg_weight":322.29,"weight_dev":22.29,"work_time":2463,"monthly":[{"month":"2025-05","pass_rate":91.74},{"month":"2025-06","pass_rate":94.86},{"month":"2025-07","pass_rate":94.47},{"month":"2025-08","pass_rate":96.2},{"month":"2025-09","pass_rate":94.67},{"month":"2025-10","pass_rate":88.76},{"month":"2025-12","pass_rate":85.48},{"month":"2026-01","pass_rate":92.36},{"month":"2026-02","pass_rate":95.88},{"month":"2026-03","pass_rate":91.97},{"month":"2026-04","pass_rate":88.12},{"month":"2026-05","pass_rate":93.25},{"month":"2026-06","pass_rate":91.88}]},
+  "285102":{"cd":"285102","name":"BK)냉커피번토핑물","std":300,"lcl":300,"ucl":330,"orders":13,"data_cnt":21410,"ucl_over":417,"lcl_over":1007,"ucl_rate":1.95,"lcl_rate":4.7,"pass_rate":93.35,"avg_weight":310.51,"weight_dev":10.51,"work_time":2654,"monthly":[{"month":"2025-05","pass_rate":91.19},{"month":"2025-06","pass_rate":94.79},{"month":"2025-08","pass_rate":94.17},{"month":"2025-09","pass_rate":90.5},{"month":"2025-11","pass_rate":87.68},{"month":"2025-12","pass_rate":91.85},{"month":"2026-01","pass_rate":95.46},{"month":"2026-03","pass_rate":97.25},{"month":"2026-04","pass_rate":93.97},{"month":"2026-05","pass_rate":95.54},{"month":"2026-06","pass_rate":95.7}]},
+  "285103":{"cd":"285103","name":"BK)마늘크림믹스F","std":300,"lcl":300,"ucl":330,"orders":19,"data_cnt":28985,"ucl_over":452,"lcl_over":1585,"ucl_rate":1.56,"lcl_rate":5.47,"pass_rate":92.97,"avg_weight":309.69,"weight_dev":9.69,"work_time":3192,"monthly":[{"month":"2025-05","pass_rate":92.17},{"month":"2025-06","pass_rate":94.54},{"month":"2025-07","pass_rate":92.06},{"month":"2025-08","pass_rate":91.36},{"month":"2025-09","pass_rate":93.14},{"month":"2025-10","pass_rate":96.09},{"month":"2025-11","pass_rate":95.11},{"month":"2025-12","pass_rate":87.75},{"month":"2026-01","pass_rate":92.97},{"month":"2026-02","pass_rate":94.11},{"month":"2026-03","pass_rate":95.58},{"month":"2026-04","pass_rate":87.99},{"month":"2026-05","pass_rate":91.64},{"month":"2026-06","pass_rate":93.37},{"month":"2026-07","pass_rate":97.84}]},
+  "285104":{"cd":"285104","name":"BK)연유크림F","std":300,"lcl":300,"ucl":330,"orders":10,"data_cnt":12154,"ucl_over":171,"lcl_over":720,"ucl_rate":1.41,"lcl_rate":5.92,"pass_rate":92.67,"avg_weight":335.54,"weight_dev":35.54,"work_time":1286,"monthly":[{"month":"2025-05","pass_rate":87.82},{"month":"2025-06","pass_rate":89.11},{"month":"2025-08","pass_rate":96.41},{"month":"2025-09","pass_rate":93.89},{"month":"2025-11","pass_rate":89.92},{"month":"2025-12","pass_rate":97.62},{"month":"2026-01","pass_rate":93.85},{"month":"2026-02","pass_rate":93.75}]},
+  "284760":{"cd":"284760","name":"[수출]캄보디아_연유크림","std":240,"lcl":240,"ucl":null,"orders":3,"data_cnt":2396,"ucl_over":2395,"lcl_over":147,"ucl_rate":99.96,"lcl_rate":6.14,"pass_rate":null,"avg_weight":250.87,"weight_dev":10.87,"work_time":143,"monthly":[{"month":"2025-05","pass_rate":0.0},{"month":"2025-12","pass_rate":0.0},{"month":"2026-05","pass_rate":0.0}]},
+  "284961":{"cd":"284961","name":"[수출]베트남_연유크림","std":240,"lcl":240,"ucl":260,"orders":2,"data_cnt":942,"ucl_over":136,"lcl_over":77,"ucl_rate":14.44,"lcl_rate":8.17,"pass_rate":77.39,"avg_weight":254.01,"weight_dev":14.01,"work_time":100,"monthly":[{"month":"2025-05","pass_rate":30.3},{"month":"2025-06","pass_rate":87.39}]}
+};
+
+const ITEMS = Object.values(DATA);
+const EXPORT_CDS = ['284059','284535','284760','284961'];
+const isExport = cd => EXPORT_CDS.includes(cd);
+
+function passColor(r){
+  if(r===null) return '#9CA3AF';
+  if(r>=95) return '#16A34A';
+  if(r>=90) return '#D97706';
+  return '#DC2626';
+}
+function passBadge(r){
+  if(r===null) return 'badge-grey';
+  if(r>=95) return 'badge-ok';
+  if(r>=90) return 'badge-warn';
+  return 'badge-err';
+}
+
+// RANK CHART
+(function(){
+  const cv=document.getElementById('cvRank');
+  const W=cv.parentElement.clientWidth||800, H=260, dpr=window.devicePixelRatio||1;
+  cv.width=W*dpr; cv.height=H*dpr; cv.style.width=W+'px'; cv.style.height=H+'px';
+  const ctx=cv.getContext('2d'); ctx.scale(dpr,dpr);
+  const sorted=[...ITEMS].sort((a,b)=>(b.pass_rate||0)-(a.pass_rate||0));
+  const P={t:14,b:28,l:168,r:90};
+  const pw=W-P.l-P.r, ph=H-P.t-P.b, rh=ph/sorted.length-4;
+  ctx.fillStyle='#F8F9FD'; ctx.fillRect(0,0,W,H);
+  const x95=P.l+(95/100)*pw;
+  ctx.strokeStyle='#CBD5E1'; ctx.lineWidth=1; ctx.setLineDash([4,4]);
+  ctx.beginPath(); ctx.moveTo(x95,P.t); ctx.lineTo(x95,H-P.b); ctx.stroke(); ctx.setLineDash([]);
+  ctx.fillStyle='#94A3B8'; ctx.font='9px ui-monospace,monospace'; ctx.textAlign='center'; ctx.textBaseline='bottom';
+  ctx.fillText('95%',x95,P.t-2);
+  sorted.forEach((p,i)=>{
+    const y=P.t+i*(rh+4), pr=p.pass_rate, barW=(pr!==null)?(pr/100)*pw:0, color=passColor(pr), cy=y+rh/2;
+    ctx.fillStyle='#EEF2F9'; ctx.beginPath(); ctx.roundRect(P.l,y+2,pw,rh-4,3); ctx.fill();
+    if(barW>0){
+      ctx.fillStyle=color+'26'; ctx.beginPath(); ctx.roundRect(P.l,y+2,barW,rh-4,3); ctx.fill();
+      ctx.fillStyle=color; ctx.fillRect(P.l,y+2,3,rh-4);
+    }
+    ctx.textAlign='right'; ctx.textBaseline='middle';
+    ctx.font=`700 11px 'Apple SD Gothic Neo','Malgun Gothic',system-ui`; ctx.fillStyle='#1E293B';
+    ctx.fillText(p.name.replace('[수출]',''), P.l-8, cy);
+    ctx.font='9px ui-monospace,monospace'; ctx.fillStyle='#94A3B8';
+    ctx.fillText(p.cd, P.l-8, cy+12);
+    ctx.textAlign='left'; ctx.font='700 12px ui-monospace,monospace'; ctx.fillStyle=color;
+    ctx.fillText(pr===null?'데이터오류':pr.toFixed(1)+'%', P.l+barW+6, cy);
+    if(isExport(p.cd)){
+      ctx.fillStyle='#EDE9FE'; const tx=P.l+pw+4; ctx.fillRect(tx,cy-7,28,14);
+      ctx.fillStyle='#7C3AED'; ctx.font='700 8px ui-monospace,monospace'; ctx.textAlign='left';
+      ctx.fillText('수출',tx+3,cy);
+    }
+  });
+  [80,85,90,95,100].forEach(v=>{
+    const x=P.l+(v/100)*pw;
+    ctx.fillStyle='#CBD5E1'; ctx.font='9px ui-monospace,monospace'; ctx.textAlign='center'; ctx.textBaseline='top';
+    ctx.fillText(v+'%',x,H-P.b+4);
+  });
+})();
+
+// LIMIT CHART
+(function(){
+  const cv=document.getElementById('cvLimit');
+  const W=cv.parentElement.clientWidth||520, H=260, dpr=window.devicePixelRatio||1;
+  cv.width=W*dpr; cv.height=H*dpr; cv.style.width=W+'px'; cv.style.height=H+'px';
+  const ctx=cv.getContext('2d'); ctx.scale(dpr,dpr);
+  ctx.fillStyle='#F8F9FD'; ctx.fillRect(0,0,W,H);
+  const items=ITEMS.filter(p=>p.cd!=='284760').sort((a,b)=>b.ucl_rate-a.ucl_rate);
+  const P={t:14,b:40,l:124,r:10};
+  const pw=W-P.l-P.r, ph=H-P.t-P.b, rh=ph/items.length-3, maxRate=15;
+  items.forEach((p,i)=>{
+    const y=P.t+i*(rh+3), cy=y+rh/2;
+    const uclW=Math.min((p.ucl_rate/maxRate)*pw,pw*0.6);
+    const lclW=Math.min((p.lcl_rate/maxRate)*pw,pw*0.6);
+    ctx.fillStyle='#EEF2F9'; ctx.beginPath(); ctx.roundRect(P.l,y,pw,rh-1,2); ctx.fill();
+    if(uclW>0){
+      ctx.fillStyle='#FEE2E2'; ctx.beginPath(); ctx.roundRect(P.l,y,uclW,Math.floor((rh-1)/2)-1,2); ctx.fill();
+      ctx.fillStyle='#DC2626'; ctx.fillRect(P.l,y,2,Math.floor((rh-1)/2)-1);
+    }
+    if(lclW>0){
+      const ly=y+Math.floor((rh-1)/2);
+      ctx.fillStyle='#DBEAFE'; ctx.beginPath(); ctx.roundRect(P.l,ly,lclW,Math.floor((rh-1)/2),2); ctx.fill();
+      ctx.fillStyle='#3B82F6'; ctx.fillRect(P.l,ly,2,Math.floor((rh-1)/2));
+    }
+    ctx.textAlign='right'; ctx.textBaseline='middle';
+    ctx.font=`600 10px 'Apple SD Gothic Neo','Malgun Gothic',system-ui`; ctx.fillStyle='#334155';
+    ctx.fillText(p.name.replace('[수출]','').replace('BK)',''), P.l-6, cy-4);
+    ctx.font='8.5px ui-monospace,monospace'; ctx.fillStyle='#94A3B8';
+    ctx.fillText(p.cd, P.l-6, cy+6);
+    ctx.textAlign='left'; ctx.font='700 9px ui-monospace,monospace';
+    ctx.fillStyle='#DC2626'; ctx.fillText(p.ucl_rate.toFixed(2)+'%', P.l+uclW+3, y+rh*0.28);
+    ctx.fillStyle='#3B82F6'; ctx.fillText(p.lcl_rate.toFixed(2)+'%', P.l+lclW+3, y+rh*0.72);
+  });
+  const ly=H-P.b+8;
+  ctx.fillStyle='#DC2626'; ctx.fillRect(P.l,ly,10,7);
+  ctx.fillStyle='#475569'; ctx.font='9px system-ui'; ctx.textBaseline='top'; ctx.fillText('UCL 초과율', P.l+13, ly);
+  ctx.fillStyle='#3B82F6'; ctx.fillRect(P.l+76,ly,10,7);
+  ctx.fillStyle='#475569'; ctx.fillText('LCL 미달율', P.l+89, ly);
+})();
+
+
+
+// MONTHLY TREND
+const TCOL={'284023':'#1E40AF','284047':'#16A34A','284059':'#DC2626',
+  '284535':'#D97706','285101':'#7C3AED','285102':'#0891B2',
+  '285103':'#BE185D','285104':'#92400E','284760':'#9CA3AF','284961':'#059669'};
+const TALL=['2025-04','2025-05','2025-06','2025-07','2025-08','2025-09',
+  '2025-10','2025-11','2025-12','2026-01','2026-02','2026-03',
+  '2026-04','2026-05','2026-06','2026-07'];
+let tSel=new Set(['284023','284047','284059','284535','285101','285102','285103','285104','284760','284961']);
+
+function drawTrend(){
+  const cv=document.getElementById('cvTrend');
+  const W=cv.parentElement.clientWidth||900,H=240,dpr=window.devicePixelRatio||1;
+  cv.width=W*dpr;cv.height=H*dpr;cv.style.width=W+'px';cv.style.height=H+'px';
+  const ctx=cv.getContext('2d');ctx.scale(dpr,dpr);
+  ctx.fillStyle='#F8F9FD';ctx.fillRect(0,0,W,H);
+  const P={t:14,b:40,l:40,r:20},pw=W-P.l-P.r,ph=H-P.t-P.b,n=TALL.length;
+  [80,85,90,95,100].forEach(v=>{
+    const y=P.t+ph-(v-80)/20*ph;
+    ctx.strokeStyle=v===95?'#CBD5E1':'#EEF2F9';ctx.lineWidth=v===95?1.5:1;
+    ctx.setLineDash(v===95?[5,4]:[]);ctx.beginPath();ctx.moveTo(P.l,y);
+    ctx.lineTo(P.l+pw,y);ctx.stroke();ctx.setLineDash([]);
+    ctx.fillStyle='#94A3B8';ctx.font='9px ui-monospace,monospace';
+    ctx.textAlign='right';ctx.textBaseline='middle';ctx.fillText(v+'%',P.l-4,y);
+  });
+  const xA=i=>P.l+(n<=1?pw/2:i/(n-1)*pw);
+  const yA=v=>P.t+ph-(Math.max(80,Math.min(100,v))-80)/20*ph;
+  TALL.forEach((m,i)=>{
+    ctx.fillStyle='#94A3B8';ctx.font='8.5px ui-monospace,monospace';
+    ctx.textAlign='center';ctx.textBaseline='top';ctx.fillText(m.slice(2),xA(i),H-P.b+4);
+  });
+  [...tSel].forEach(cd=>{
+    const p=DATA[cd];if(!p||!p.monthly)return;
+    const color=TCOL[cd];
+    const pts=TALL.map((m,i)=>{
+      const mo=p.monthly.find(r=>r.month===m);
+      return mo?{x:xA(i),y:yA(mo.pass_rate),valid:true}:{x:xA(i),valid:false};
+    });
+    ctx.strokeStyle=color;ctx.lineWidth=2.5;ctx.beginPath();
+    let st=false;
+    pts.forEach(pt=>{if(!pt.valid){st=false;return;}
+      if(!st){ctx.moveTo(pt.x,pt.y);st=true;}else ctx.lineTo(pt.x,pt.y);});
+    ctx.stroke();
+    pts.forEach(pt=>{if(!pt.valid)return;
+      ctx.beginPath();ctx.arc(pt.x,pt.y,3.5,0,Math.PI*2);
+      ctx.fillStyle=color;ctx.fill();ctx.strokeStyle='#fff';ctx.lineWidth=1.5;ctx.stroke();});
+  });
+}
+
+(function(){
+  const sel=document.getElementById('trendSel');
+  ITEMS.filter(p=>p.monthly&&p.monthly.length>0).forEach(p=>{
+    const cd=p.cd,color=TCOL[cd];
+    const nm=(p.name||cd).replace('[수출]','').replace('BK)','').trim();
+    const dot=document.createElement('div');dot.className='pchip-dot';dot.style.background=color;
+    const sp1=document.createElement('span');sp1.className='pchip-nm';sp1.textContent=nm;
+    const sp2=document.createElement('span');sp2.style.cssText='font-size:8.5px;color:var(--text3);margin-left:2px';sp2.textContent=cd;
+    const chip=document.createElement('div');
+    chip.className='pchip'+(tSel.has(cd)?' on':'');
+    chip.style.color=color;chip.dataset.cd=cd;
+    chip.appendChild(dot);chip.appendChild(sp1);chip.appendChild(sp2);
+    chip.addEventListener('click',function(){
+      if(tSel.has(cd)){if(tSel.size>1)tSel.delete(cd);}else tSel.add(cd);
+      document.querySelectorAll('.pchip').forEach(
+        function(c){c.classList.toggle('on',tSel.has(c.dataset.cd));});
+      drawTrend();
+    });
+    sel.appendChild(chip);
+  });
+  drawTrend();
+})();
+
+// TABLE
+(function(){
+  const tbody=document.getElementById('tbl');
+  [...ITEMS].sort((a,b)=>b.data_cnt-a.data_cnt).forEach(p=>{
+    const isA=p.cd==='284760';
+    const bcls=isA?'badge-grey':passBadge(p.pass_rate);
+    const prL=isA?'데이터오류':(p.pass_rate!==null?p.pass_rate.toFixed(2)+'%':'—');
+    const expB=isExport(p.cd)?`<span class="badge badge-purple" style="font-size:8px;margin-left:4px">수출</span>`:'';
+    const devS=p.weight_dev>20?'color:#DC2626;font-weight:700':p.weight_dev>10?'color:#D97706;font-weight:600':'color:#16A34A';
+    tbody.innerHTML+=`<tr>
+      <td class="num" style="font-size:10px;color:var(--text3)">${p.cd}</td>
+      <td class="label">${p.name}${expB}</td>
+      <td class="num">${p.orders}</td>
+      <td class="num">${(p.data_cnt/1000).toFixed(0)}k</td>
+      <td class="num"><span class="badge ${bcls}">${prL}</span></td>
+      <td class="num" style="color:#DC2626">${isA?'—':p.ucl_rate.toFixed(2)+'%'}</td>
+      <td class="num" style="color:#3B82F6">${isA?'—':p.lcl_rate.toFixed(2)+'%'}</td>
+      <td class="num">${p.avg_weight.toFixed(1)}g</td>
+      <td class="num"><span style="${devS}">+${p.weight_dev.toFixed(1)}g</span></td>
+      <td>${isA?`<span class="badge badge-grey">데이터오류</span>`:''}</td>
+    </tr>`;
+  });
+})();
+
+// CARDS
+(function(){
+  const container=document.getElementById('cards');
+  [...ITEMS].sort((a,b)=>b.data_cnt-a.data_cnt).forEach(p=>{
+    const isA=p.cd==='284760';
+    const pr=p.pass_rate, col=isA?'#9CA3AF':passColor(pr);
+    const bcls=isA?'badge-grey':passBadge(pr);
+    const prL=isA?'데이터오류':(pr!==null?pr.toFixed(1)+'%':'—');
+    const expT=isExport(p.cd)?`<span class="badge badge-purple" style="font-size:8px;padding:1px 5px">수출</span>`:'';
+    const sNote=p.orders<5?`<div style="font-size:9px;color:var(--text3);margin-top:4px">&#9888; 소량 데이터 (${p.orders}회 작업)</div>`:'';
+    const devS=p.weight_dev>20?'color:#DC2626':p.weight_dev>10?'color:#D97706':'color:#16A34A';
+    container.innerHTML+=`<div class="card">
+      <div class="card-stripe" style="background:${col}"></div>
+      <div style="padding-left:6px">
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
+          <div class="card-id">${p.cd}</div>
+          <span class="badge ${bcls}">${prL}</span>${expT}
+        </div>
+        <div class="card-name">${p.name}</div>
+        ${sNote}
+        <div class="card-meta">
+          <div class="cm"><div class="cm-v">${p.orders}</div><div class="cm-l">작업횟수</div></div>
+          <div class="cm"><div class="cm-v">${(p.data_cnt/1000).toFixed(0)}k</div><div class="cm-l">총계량</div></div>
+          <div class="cm"><div class="cm-v" style="${devS}">+${p.weight_dev.toFixed(1)}g</div><div class="cm-l">중량편차</div></div>
+          <div class="cm"><div class="cm-v">${p.std}g</div><div class="cm-l">기준중량</div></div>
+        </div>
+        <div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border-light);font-size:10px;color:var(--text3)">
+          UCL초과: <span style="color:#DC2626;font-weight:600">${isA?'—':p.ucl_rate.toFixed(2)+'%'}</span>
+          &nbsp;|&nbsp;LCL미달: <span style="color:#3B82F6;font-weight:600">${isA?'—':p.lcl_rate.toFixed(2)+'%'}</span>
+          &nbsp;|&nbsp;평균: <span style="font-weight:600">${p.avg_weight.toFixed(1)}g</span>
+        </div>
+      </div>
+    </div>`;
+  });
+})();
+
+// ── DEFECT TYPE ──
+(function(){
+  const cv=document.getElementById('cvDefect');
+  if(!cv) return;
+  const dpr=window.devicePixelRatio||1;
+  const W=cv.parentElement.clientWidth||900,H=300;
+  cv.width=W*dpr;cv.height=H*dpr;cv.style.width=W+'px';cv.style.height=H+'px';
+  const ctx=cv.getContext('2d');ctx.scale(dpr,dpr);
+  ctx.fillStyle='#F8F9FD';ctx.fillRect(0,0,W,H);
+  const prods=[...ITEMS].sort((a,b)=>{
+    if(a.has_ucl_anomaly&&!b.has_ucl_anomaly)return 1;
+    if(!a.has_ucl_anomaly&&b.has_ucl_anomaly)return -1;
+    return (a.pass_rate||0)-(b.pass_rate||0);
+  });
+  const P={t:14,b:50,l:108,r:16};
+  const pw=W-P.l-P.r,ph=H-P.t-P.b,n=prods.length,rowH=ph/n;
+  [0,25,50,75,100].forEach(v=>{
+    const x=P.l+v/100*pw;
+    ctx.strokeStyle=v===0||v===100?'#94A3B8':'#E2E8F0';
+    ctx.lineWidth=v===0||v===100?1.2:0.8;
+    ctx.setLineDash(v===0||v===100?[]:[3,3]);
+    ctx.beginPath();ctx.moveTo(x,P.t);ctx.lineTo(x,P.t+ph);ctx.stroke();ctx.setLineDash([]);
+    if(v>0&&v<100){ctx.fillStyle='#9CA3AF';ctx.font='8px ui-monospace,monospace';ctx.textAlign='center';ctx.textBaseline='top';ctx.fillText(v+'%',x,P.t+ph+4);}
+  });
+  prods.forEach((p,i)=>{
+    const y=P.t+i*rowH,bh=Math.max(Math.round(rowH*0.62),10),by=y+Math.round((rowH-bh)/2);
+    const nm=(p.name||p.cd).replace('[수출]','').replace('[出口]','').replace('BK)','').trim();
+    ctx.fillStyle='#374151';ctx.font='9.5px system-ui,sans-serif';
+    ctx.textAlign='right';ctx.textBaseline='middle';
+    ctx.fillText(nm.length>8?nm.slice(0,7)+'…':nm,P.l-5,by+bh/2);
+    if(p.has_ucl_anomaly){
+      ctx.fillStyle='#FFFBEB';ctx.fillRect(P.l,by,pw,bh);
+      ctx.strokeStyle='#FDE68A';ctx.lineWidth=1;ctx.strokeRect(P.l,by,pw,bh);
+      ctx.fillStyle='#B45309';ctx.font='9.5px system-ui';ctx.textAlign='center';ctx.textBaseline='middle';
+      ctx.fillText('⚠ UCL 미설정 (데이터 이상)',P.l+pw/2,by+bh/2);return;
+    }
+    const ucl=p.ucl_rate||0,lcl=p.lcl_rate||0,pass=Math.max(0,100-ucl-lcl);
+    const lp=lcl/100*pw,pp=pass/100*pw,up=ucl/100*pw;
+    if(lp>0){ctx.fillStyle='#60A5FA';ctx.fillRect(P.l,by,lp,bh);}
+    ctx.fillStyle='#34D399';ctx.fillRect(P.l+lp,by,pp,bh);
+    if(up>0){ctx.fillStyle='#F87171';ctx.fillRect(P.l+lp+pp,by,up,bh);}
+    ctx.strokeStyle='rgba(255,255,255,0.4)';ctx.lineWidth=0.5;
+    if(lp>0){ctx.beginPath();ctx.moveTo(P.l+lp,by);ctx.lineTo(P.l+lp,by+bh);ctx.stroke();}
+    if(up>0){ctx.beginPath();ctx.moveTo(P.l+lp+pp,by);ctx.lineTo(P.l+lp+pp,by+bh);ctx.stroke();}
+    ctx.fillStyle='#fff';ctx.font='bold 8.5px ui-monospace,monospace';ctx.textBaseline='middle';ctx.textAlign='center';
+    if(lp>26)ctx.fillText(lcl.toFixed(1)+'%',P.l+lp/2,by+bh/2);
+    if(pp>26)ctx.fillText(pass.toFixed(1)+'%',P.l+lp+pp/2,by+bh/2);
+    if(up>26)ctx.fillText(ucl.toFixed(1)+'%',P.l+lp+pp+up/2,by+bh/2);
+  });
+  const legs=[['#60A5FA','LCL초과(부족충전)'],['#34D399','합격'],['#F87171','UCL초과(과충전)']];
+  let lx=P.l;
+  legs.forEach(([col,t])=>{
+    ctx.fillStyle=col;ctx.fillRect(lx,H-P.b+22,10,10);
+    ctx.fillStyle='#475569';ctx.font='10px system-ui,sans-serif';
+    ctx.textAlign='left';ctx.textBaseline='middle';
+    ctx.fillText(t,lx+13,H-P.b+27);
+    lx+=ctx.measureText(t).width+30;
+  });
+})();
+
+// ── WEIGHT DEVIATION ──
+(function(){
+  const cv=document.getElementById('cvDev');
+  if(!cv) return;
+  const dpr=window.devicePixelRatio||1;
+  const W=cv.parentElement.clientWidth||900,H=220;
+  cv.width=W*dpr;cv.height=H*dpr;cv.style.width=W+'px';cv.style.height=H+'px';
+  const ctx=cv.getContext('2d');ctx.scale(dpr,dpr);
+  ctx.fillStyle='#F8F9FD';ctx.fillRect(0,0,W,H);
+  const prods=[...ITEMS].sort((a,b)=>((b.avg_weight||0)-(b.std||0))-((a.avg_weight||0)-(a.std||0)));
+  const devs=prods.map(p=>(p.avg_weight||0)-(p.std||0));
+  const maxDev=Math.ceil(Math.max(...devs)+4);
+  const P={t:28,b:50,l:46,r:16};
+  const pw=W-P.l-P.r,ph=H-P.t-P.b,n=prods.length;
+  const slotW=pw/n,barW=Math.min(slotW*0.58,46);
+  for(let v=0;v<=maxDev;v+=10){
+    const y=P.t+ph-v/maxDev*ph;
+    ctx.strokeStyle=v===0?'#94A3B8':'#E2E8F0';
+    ctx.lineWidth=v===0?1.5:0.8;ctx.setLineDash(v===0?[]:[3,3]);
+    ctx.beginPath();ctx.moveTo(P.l,y);ctx.lineTo(P.l+pw,y);ctx.stroke();ctx.setLineDash([]);
+    ctx.fillStyle='#9CA3AF';ctx.font='8.5px ui-monospace,monospace';
+    ctx.textAlign='right';ctx.textBaseline='middle';
+    ctx.fillText((v>0?'+':'')+v+'g',P.l-3,y);
+  }
+  prods.forEach((p,i)=>{
+    const dev=(p.avg_weight||0)-(p.std||0);
+    const x=P.l+i*slotW+(slotW-barW)/2;
+    const barH=Math.max(dev/maxDev*ph,2),y=P.t+ph-barH;
+    const grad=ctx.createLinearGradient(0,y,0,y+barH);
+    grad.addColorStop(0,'#FCD34D');grad.addColorStop(1,'#F59E0B');
+    ctx.fillStyle=grad;ctx.fillRect(x,y,barW,barH);
+    ctx.fillStyle='#78350F';ctx.font='bold 8.5px ui-monospace,monospace';
+    ctx.textAlign='center';ctx.textBaseline='bottom';
+    ctx.fillText('+'+dev.toFixed(1),x+barW/2,y-2);
+    ctx.fillStyle='#475569';ctx.font='8px ui-monospace,monospace';
+    ctx.textAlign='center';ctx.textBaseline='top';
+    ctx.fillText(p.cd,x+barW/2,P.t+ph+5);
+    const nm=(p.name||p.cd).replace('[수출]','').replace('[出口]','').replace('BK)','').trim();
+    ctx.fillStyle='#64748B';ctx.font='7.5px system-ui,sans-serif';
+    ctx.fillText(nm.length>6?nm.slice(0,5)+'…':nm,x+barW/2,P.t+ph+17);
+  });
+  ctx.fillStyle='#64748B';ctx.font='8.5px system-ui,sans-serif';
+  ctx.textAlign='left';ctx.textBaseline='middle';
+  ctx.fillText('기준±0g',P.l+3,P.t+ph-9);
+})();
+
+
+// ── LOSS ANALYSIS ──
+(function(){
+  const LITEMS=[{"cd":"284023","name":"연유크림","excess_kg":37332.2,"avg_excess":9.74,"pct":3.25},{"cd":"284059","name":"뉴아몬드크림","excess_kg":9889.4,"avg_excess":13.81,"pct":5.52},{"cd":"284047","name":"연유토핑물","excess_kg":6515.4,"avg_excess":12.87,"pct":4.29},{"cd":"284535","name":"마늘토핑","excess_kg":1683.9,"avg_excess":13.36,"pct":6.68},{"cd":"285101","name":"냉아몬드크림","excess_kg":532.2,"avg_excess":22.29,"pct":7.43},{"cd":"285104","name":"연유크림F","excess_kg":432.0,"avg_excess":35.54,"pct":11.85},{"cd":"285103","name":"마늘크림믹스F","excess_kg":281.0,"avg_excess":9.69,"pct":3.23},{"cd":"285102","name":"냉커피번토핑물","excess_kg":225.0,"avg_excess":10.51,"pct":3.5},{"cd":"284760","name":"캄보디아_연유크림","excess_kg":26.0,"avg_excess":10.87,"pct":4.53},{"cd":"284961","name":"베트남_연유크림","excess_kg":13.2,"avg_excess":14.01,"pct":5.84}];
+  const G_LBL='g/개', PCT_LBL='과충전율%';
+
+  // Chart 1: Excess kg horizontal bar
+  (function(){
+    const cv=document.getElementById('cvLoss1');
+    if(!cv) return;
+    const dpr=window.devicePixelRatio||1;
+    const W=cv.parentElement.clientWidth||900, H=260;
+    cv.width=W*dpr;cv.height=H*dpr;cv.style.width=W+'px';cv.style.height=H+'px';
+    const ctx=cv.getContext('2d');ctx.scale(dpr,dpr);
+    ctx.fillStyle='#F8F9FD';ctx.fillRect(0,0,W,H);
+    const maxEx=LITEMS[0].excess_kg;
+    const P={t:12,b:20,l:120,r:80};
+    const pw=W-P.l-P.r, ph=H-P.t-P.b;
+    const n=LITEMS.length, rowH=ph/n;
+    // Grid
+    [0,25,50,75,100].forEach(pct=>{
+      const x=P.l+pct/100*pw;
+      ctx.strokeStyle=pct===0?'#94A3B8':'#E2E8F0';
+      ctx.lineWidth=pct===0?1.2:0.8;ctx.setLineDash(pct===0?[]:[3,3]);
+      ctx.beginPath();ctx.moveTo(x,P.t);ctx.lineTo(x,P.t+ph);ctx.stroke();ctx.setLineDash([]);
+    });
+    LITEMS.forEach((p,i)=>{
+      const bh=Math.round(rowH*0.55), by=P.t+i*rowH+Math.round((rowH-bh)/2);
+      // Name
+      ctx.fillStyle='#374151';ctx.font='9.5px system-ui,sans-serif';
+      ctx.textAlign='right';ctx.textBaseline='middle';
+      ctx.fillText(p.name.length>10?p.name.slice(0,9)+'…':p.name, P.l-5, by+bh/2);
+      // Bar
+      const bw=p.excess_kg/maxEx*pw;
+      const intensity=p.excess_kg/maxEx;
+      const r=Math.round(220+35*intensity), g2=Math.round(38+62*(1-intensity)), b=Math.round(38+62*(1-intensity));
+      ctx.fillStyle=`rgb(${r},${g2},${b})`;
+      ctx.fillRect(P.l, by, bw, bh);
+      // Value right of bar
+      ctx.fillStyle='#1E293B';ctx.font='bold 9px ui-monospace,monospace';
+      ctx.textAlign='left';ctx.textBaseline='middle';
+      ctx.fillText(p.excess_kg.toLocaleString()+' kg', P.l+bw+4, by+bh/2);
+    });
+  })();
+
+  // Chart 2: avg excess g + pct (grouped bars)
+  (function(){
+    const cv=document.getElementById('cvLoss2');
+    if(!cv) return;
+    const dpr=window.devicePixelRatio||1;
+    const W=cv.parentElement.clientWidth||900, H=200;
+    cv.width=W*dpr;cv.height=H*dpr;cv.style.width=W+'px';cv.style.height=H+'px';
+    const ctx=cv.getContext('2d');ctx.scale(dpr,dpr);
+    ctx.fillStyle='#F8F9FD';ctx.fillRect(0,0,W,H);
+    // Sort by avg_excess desc
+    const items=[...LITEMS].sort((a,b)=>b.avg_excess-a.avg_excess);
+    const maxG=Math.ceil(Math.max(...items.map(p=>p.avg_excess))+5);
+    const maxPct=Math.ceil(Math.max(...items.map(p=>p.pct))+2);
+    const P={t:20,b:52,l:40,r:50};
+    const pw=W-P.l-P.r, ph=H-P.t-P.b, n=items.length;
+    const slotW=pw/n, barW=Math.min(slotW*0.35,24);
+    // Left Y axis (g)
+    [0,10,20,30,40].filter(v=>v<=maxG).forEach(v=>{
+      const y=P.t+ph-v/maxG*ph;
+      ctx.strokeStyle=v===0?'#94A3B8':'#E2E8F0';
+      ctx.lineWidth=v===0?1.5:0.8;ctx.setLineDash(v===0?[]:[3,3]);
+      ctx.beginPath();ctx.moveTo(P.l,y);ctx.lineTo(P.l+pw,y);ctx.stroke();ctx.setLineDash([]);
+      ctx.fillStyle='#9CA3AF';ctx.font='8px ui-monospace,monospace';
+      ctx.textAlign='right';ctx.textBaseline='middle';
+      ctx.fillText((v>0?'+':'')+v+'g',P.l-3,y);
+    });
+    // Right Y axis (%)
+    ctx.fillStyle='#7C3AED';ctx.font='8px ui-monospace,monospace';
+    ctx.textAlign='left';ctx.textBaseline='top';
+    ctx.fillText('%→',P.l+pw+2,P.t);
+    items.forEach((p,i)=>{
+      const cx=P.l+i*slotW+slotW/2;
+      // Bar: avg_excess g (amber)
+      const gH=Math.max(p.avg_excess/maxG*ph,1), gy=P.t+ph-gH;
+      const gGrad=ctx.createLinearGradient(0,gy,0,gy+gH);
+      gGrad.addColorStop(0,'#FCD34D');gGrad.addColorStop(1,'#F59E0B');
+      ctx.fillStyle=gGrad;
+      ctx.fillRect(cx-barW-1,gy,barW,gH);
+      // Bar: pct (violet)
+      const pH2=Math.max(p.pct/maxPct*ph,1), py=P.t+ph-pH2;
+      const pGrad=ctx.createLinearGradient(0,py,0,py+pH2);
+      pGrad.addColorStop(0,'#A78BFA');pGrad.addColorStop(1,'#7C3AED');
+      ctx.fillStyle=pGrad;
+      ctx.fillRect(cx+1,py,barW,pH2);
+      // Value labels
+      ctx.fillStyle='#78350F';ctx.font='bold 8px ui-monospace,monospace';
+      ctx.textAlign='center';ctx.textBaseline='bottom';
+      ctx.fillText('+'+p.avg_excess.toFixed(1),cx-barW/2-1,gy-2);
+      ctx.fillStyle='#5B21B6';
+      ctx.fillText(p.pct.toFixed(1)+'%',cx+barW/2+1,py-2);
+      // X label
+      ctx.fillStyle='#475569';ctx.font='7.5px ui-monospace,monospace';
+      ctx.textAlign='center';ctx.textBaseline='top';
+      ctx.fillText(p.cd,cx,P.t+ph+5);
+      const nm=p.name.length>5?p.name.slice(0,4)+'…':p.name;
+      ctx.fillStyle='#64748B';ctx.font='7px system-ui';
+      ctx.fillText(nm,cx,P.t+ph+16);
+    });
+    // Legend
+    ctx.fillStyle='#F59E0B';ctx.fillRect(P.l,H-P.b+28,10,10);
+    ctx.fillStyle='#475569';ctx.font='9.5px system-ui';ctx.textAlign='left';ctx.textBaseline='middle';
+    ctx.fillText(G_LBL,P.l+13,H-P.b+33);
+    const w1=ctx.measureText(G_LBL).width;
+    ctx.fillStyle='#7C3AED';ctx.fillRect(P.l+w1+25,H-P.b+28,10,10);
+    ctx.fillText(PCT_LBL,P.l+w1+38,H-P.b+33);
+  })();
+})();
+
+</script>
+</body>
+</html>

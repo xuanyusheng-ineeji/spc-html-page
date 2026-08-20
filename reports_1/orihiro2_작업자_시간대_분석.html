@@ -1,0 +1,340 @@
+﻿<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Orihiro #2 作业人员·作业时间分析</title>
+<style>
+:root{
+  --bg:#F1F5F9;--panel:#fff;--border:#E2E8F0;
+  --text:#1E293B;--text2:#475569;--text3:#94A3B8;
+  --mono:'ui-monospace','Consolas',monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Malgun Gothic','맑은 고딕','Apple SD Gothic Neo','Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);font-size:13px;}
+.app{max-width:1100px;margin:0 auto;padding:20px 16px 48px;}
+header{background:linear-gradient(135deg,#0F172A,#1E3A5F);color:#fff;border-radius:14px;padding:26px 32px;margin-bottom:18px;}
+header h1{font-size:1.4rem;font-weight:800;}
+header p{color:#94A3B8;font-size:11.5px;margin-top:5px;}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:14px;}
+.kpi{background:var(--panel);border-radius:10px;padding:15px;border-top:3px solid #E2E8F0;}
+.kpi-label{font-size:10px;color:var(--text3);font-weight:600;letter-spacing:.4px;text-transform:uppercase;}
+.kpi-value{font-size:1.55rem;font-weight:800;margin:4px 0 2px;font-family:var(--mono);}
+.kpi-sub{font-size:10px;color:var(--text2);}
+.sec{background:var(--panel);border-radius:12px;padding:18px 20px;margin-bottom:14px;}
+.sec-hdr{display:flex;align-items:baseline;gap:6px;margin-bottom:12px;flex-wrap:wrap;}
+.sec-title{font-size:13px;font-weight:700;}
+.sec-sub{font-size:10.5px;color:var(--text3);}
+canvas{width:100%;display:block;}
+.two{display:grid;grid-template-columns:3fr 2fr;gap:14px;}
+.two2{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+@media(max-width:700px){.kpis{grid-template-columns:1fr 1fr;}.two,.two2{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+<div class="app">
+<header>
+  <h1>Orihiro #2 — 作业人员 &amp; 作业时间 品质分析</h1>
+  <p>数据来源: WRK_WORKER_IN × WRK_WEIGHT_SUMMARY_ORDER_ITEM_CD × WRK_WEIGHT_SUMMARY_RAWDATA &nbsp;|&nbsp; 设备: Z01000030 &nbsp;|&nbsp; 作业人员: 23名 &nbsp;|&nbsp; 关联订单: 1045/1051件</p>
+</header>
+
+<div class="kpis">
+  <div class="kpi" style="border-color:#1E40AF">
+    <div class="kpi-label">作业人员数</div>
+    <div class="kpi-value" style="color:#1E40AF">23<span style="font-size:.85rem">名</span></div>
+    <div class="kpi-sub">Orihiro #2 담당</div>
+  </div>
+  <div class="kpi" style="border-color:#16A34A">
+    <div class="kpi-label">最高합격률 작업자</div>
+    <div class="kpi-value" style="color:#16A34A">97.37<span style="font-size:.85rem">%</span></div>
+    <div class="kpi-sub">38612502 (88건)</div>
+  </div>
+  <div class="kpi" style="border-color:#DC2626">
+    <div class="kpi-label">최저합격률 작업자</div>
+    <div class="kpi-value" style="color:#DC2626">90.48<span style="font-size:.85rem">%</span></div>
+    <div class="kpi-sub">38613354 (38건)</div>
+  </div>
+  <div class="kpi" style="border-color:#D97706">
+    <div class="kpi-label">가중 평균 합격률</div>
+    <div class="kpi-value" style="color:#D97706">95.48<span style="font-size:.85rem">%</span></div>
+    <div class="kpi-sub">계량수 기준 가중평균</div>
+  </div>
+</div>
+
+<div class="sec">
+  <div class="sec-hdr">
+    <span class="sec-title">작업자별 합격률 &amp; 작업량 비교</span>
+    <span class="sec-sub">계량수 기준 정렬 | 점: 합격률, 바: 계량수</span>
+  </div>
+  <canvas id="cvWorker" height="260"></canvas>
+</div>
+
+<div class="two">
+  <div class="sec">
+    <div class="sec-hdr">
+      <span class="sec-title">시간대별 합격률</span>
+      <span class="sec-sub">0~23시 | RAWDATA 기반</span>
+    </div>
+    <canvas id="cvHour" height="220"></canvas>
+  </div>
+  <div class="sec">
+    <div class="sec-hdr">
+      <span class="sec-title">요일별 합격률</span>
+      <span class="sec-sub">월~일</span>
+    </div>
+    <canvas id="cvDow" height="220"></canvas>
+  </div>
+</div>
+
+<div class="two2">
+  <div class="sec">
+    <div class="sec-hdr">
+      <span class="sec-title">작업자별 작업시간 vs 합격률</span>
+      <span class="sec-sub">산점도 | 원크기 = 담당 주문수</span>
+    </div>
+    <canvas id="cvScatter" height="240"></canvas>
+  </div>
+  <div class="sec">
+    <div class="sec-hdr">
+      <span class="sec-title">작업자별 UCL/LCL 초과율</span>
+      <span class="sec-sub">과충전 vs 부족충전 비율</span>
+    </div>
+    <canvas id="cvUclLcl" height="240"></canvas>
+  </div>
+</div>
+
+</div>
+<script>
+const D = {"workers": [{"uid": "38612502", "order_cnt": 88, "dc": 745943, "pass_rate": 97.37, "ucl_rate": 0.26, "lcl_rate": 2.37, "work_min": 39039, "result_qty": 779481, "top_item": "284023", "top_item_nm": "炼乳奶油", "monthly_activity": {"2025-05": 9, "2025-06": 7, "2025-07": 5, "2025-08": 8, "2025-09": 9, "2025-10": 8, "2025-11": 5, "2025-12": 6, "2026-01": 3, "2026-02": 1, "2026-03": 7, "2026-04": 1, "2026-05": 9, "2026-07": 3, "2026-06": 7}}, {"uid": "38613308", "order_cnt": 98, "dc": 576197, "pass_rate": 96.69, "ucl_rate": 0.9, "lcl_rate": 2.4, "work_min": 34101, "result_qty": 605442, "top_item": "284023", "top_item_nm": "炼乳奶油", "monthly_activity": {"2025-07": 23, "2025-08": 7, "2025-09": 7, "2025-10": 10, "2025-11": 10, "2025-12": 6, "2026-01": 5, "2026-02": 2, "2026-03": 9, "2026-04": 3, "2026-05": 8, "2026-06": 5, "2026-07": 3}}, {"uid": "38602569", "order_cnt": 73, "dc": 549705, "pass_rate": 95.24, "ucl_rate": 2.29, "lcl_rate": 2.47, "work_min": 32202, "result_qty": 557913, "top_item": "284023", "top_item_nm": "炼乳奶油", "monthly_activity": {"2025-05": 5, "2025-06": 4, "2025-07": 5, "2025-08": 6, "2025-09": 5, "2025-10": 3, "2025-11": 2, "2025-12": 7, "2026-01": 5, "2026-02": 4, "2026-03": 3, "2026-04": 7, "2026-05": 9, "2026-06": 8}}, {"uid": "38606166", "order_cnt": 83, "dc": 547618, "pass_rate": 94.95, "ucl_rate": 0.81, "lcl_rate": 4.24, "work_min": 31189, "result_qty": 571060, "top_item": "284023", "top_item_nm": "炼乳奶油", "monthly_activity": {"2025-05": 9, "2025-06": 9, "2025-07": 5, "2025-08": 8, "2025-09": 4, "2025-10": 4, "2025-11": 9, "2025-12": 6, "2026-01": 4, "2026-02": 3, "2026-03": 5, "2026-04": 2, "2026-05": 7, "2026-06": 6, "2026-07": 2}}, {"uid": "38602525", "order_cnt": 81, "dc": 523556, "pass_rate": 96.03, "ucl_rate": 1.05, "lcl_rate": 2.92, "work_min": 30679, "result_qty": 555184, "top_item": "284023", "top_item_nm": "炼乳奶油", "monthly_activity": {"2025-05": 6, "2025-06": 10, "2025-07": 5, "2025-08": 9, "2025-09": 8, "2025-10": 6, "2025-11": 3, "2025-12": 8, "2026-01": 5, "2026-02": 3, "2026-03": 1, "2026-04": 7, "2026-05": 3, "2026-06": 7}}, {"uid": "38602325", "order_cnt": 38, "dc": 349763, "pass_rate": 95.71, "ucl_rate": 0.18, "lcl_rate": 4.11, "work_min": 18530, "result_qty": 352078, "top_item": "284023", "top_item_nm": "炼乳奶油", "monthly_activity": {"2025-05": 3, "2025-06": 4, "2025-07": 5, "2025-08": 5, "2025-09": 3, "2025-10": 3, "2025-11": 9, "2025-12": 3, "2026-01": 1, "2026-03": 2}}, {"uid": "38613191", "order_cnt": 72, "dc": 338753, "pass_rate": 95.76, "ucl_rate": 1.72, "lcl_rate": 2.52, "work_min": 20236, "result_qty": 353682, "top_item": "284047", "top_item_nm": "炼乳配料", "monthly_activity": {"2025-05": 16, "2025-06": 2, "2025-08": 6, "2025-07": 1, "2025-09": 4, "2025-10": 9, "2025-11": 2, "2025-12": 2, "2026-01": 4, "2026-02": 3, "2026-03": 4, "2026-04": 7, "2026-05": 5, "2026-06": 7}}, {"uid": "38604106", "order_cnt": 38, "dc": 329321, "pass_rate": 96.5, "ucl_rate": 0.56, "lcl_rate": 2.93, "work_min": 18006, "result_qty": 314854, "top_item": "284023", "top_item_nm": "炼乳奶油", "monthly_activity": {"2025-04": 1, "2025-05": 6, "2025-06": 9, "2025-07": 4, "2025-08": 5, "2025-09": 9, "2025-10": 4}}, {"uid": "38611672", "order_cnt": 71, "dc": 301064, "pass_rate": 95.57, "ucl_rate": 1.74, "lcl_rate": 2.69, "work_min": 19613, "result_qty": 325956, "top_item": "284047", "top_item_nm": "炼乳配料", "monthly_activity": {"2025-05": 3, "2025-06": 7, "2025-07": 6, "2025-08": 3, "2025-09": 8, "2025-10": 2, "2025-11": 1, "2025-12": 5, "2026-01": 5, "2026-02": 5, "2026-03": 4, "2026-04": 8, "2026-05": 1, "2026-06": 11, "2026-07": 2}}, {"uid": "38614339", "order_cnt": 48, "dc": 247947, "pass_rate": 96.34, "ucl_rate": 0.71, "lcl_rate": 2.95, "work_min": 14002, "result_qty": 311967, "top_item": "284023", "top_item_nm": "炼乳奶油", "monthly_activity": {"2026-01": 9, "2025-12": 12, "2026-02": 4, "2026-03": 7, "2026-04": 4, "2026-05": 7, "2026-06": 1, "2026-07": 4}}, {"uid": "38612963", "order_cnt": 65, "dc": 168392, "pass_rate": 91.71, "ucl_rate": 4.23, "lcl_rate": 4.06, "work_min": 10115, "result_qty": 180020, "top_item": "284047", "top_item_nm": "炼乳配料", "monthly_activity": {"2025-05": 5, "2025-06": 6, "2025-07": 5, "2025-08": 2, "2025-09": 5, "2025-10": 5, "2025-11": 3, "2025-12": 5, "2026-01": 5, "2026-02": 4, "2026-03": 3, "2026-04": 8, "2026-05": 6, "2026-06": 2, "2026-07": 1}}, {"uid": "38602605", "order_cnt": 69, "dc": 158399, "pass_rate": 91.36, "ucl_rate": 3.18, "lcl_rate": 5.46, "work_min": 12329, "result_qty": 154333, "top_item": "284047", "top_item_nm": "炼乳配料", "monthly_activity": {"2025-05": 5, "2025-06": 7, "2025-07": 5, "2025-08": 4, "2025-09": 2, "2025-10": 7, "2025-11": 4, "2025-12": 6, "2026-01": 7, "2026-02": 3, "2026-03": 4, "2026-04": 5, "2026-05": 3, "2026-06": 7}}, {"uid": "38602998", "order_cnt": 69, "dc": 149566, "pass_rate": 93.58, "ucl_rate": 2.77, "lcl_rate": 3.65, "work_min": 11631, "result_qty": 147845, "top_item": "284047", "top_item_nm": "炼乳配料", "monthly_activity": {"2025-05": 4, "2025-06": 5, "2025-07": 6, "2025-08": 3, "2025-09": 8, "2025-10": 9, "2025-11": 6, "2025-12": 2, "2026-01": 3, "2026-02": 3, "2026-03": 3, "2026-04": 3, "2026-05": 7, "2026-06": 5, "2026-07": 2}}, {"uid": "38613354", "order_cnt": 38, "dc": 114675, "pass_rate": 90.48, "ucl_rate": 5.41, "lcl_rate": 4.11, "work_min": 9210, "result_qty": 112874, "top_item": "284047", "top_item_nm": "炼乳配料", "monthly_activity": {"2025-08": 18, "2025-09": 5, "2025-10": 6, "2025-11": 4, "2025-12": 5}}, {"uid": "38609305", "order_cnt": 48, "dc": 113807, "pass_rate": 93.02, "ucl_rate": 2.84, "lcl_rate": 4.14, "work_min": 7690, "result_qty": 113994, "top_item": "284047", "top_item_nm": "炼乳配料", "monthly_activity": {"2025-05": 4, "2025-06": 4, "2025-07": 3, "2025-08": 1, "2025-09": 6, "2025-10": 6, "2025-11": 5, "2025-12": 2, "2026-01": 2, "2026-02": 1, "2026-03": 4, "2026-04": 2, "2026-05": 6, "2026-06": 2}}, {"uid": "38606142", "order_cnt": 41, "dc": 110358, "pass_rate": 95.22, "ucl_rate": 1.62, "lcl_rate": 3.16, "work_min": 6862, "result_qty": 116774, "top_item": "284047", "top_item_nm": "炼乳配料", "monthly_activity": {"2025-06": 4, "2025-05": 2, "2025-07": 2, "2025-08": 1, "2025-09": 3, "2025-10": 1, "2025-11": 5, "2025-12": 2, "2026-01": 3, "2026-02": 4, "2026-03": 3, "2026-04": 5, "2026-06": 1, "2026-05": 3, "2026-07": 2}}, {"uid": "38605089", "order_cnt": 29, "dc": 80680, "pass_rate": 91.87, "ucl_rate": 3.66, "lcl_rate": 4.47, "work_min": 6815, "result_qty": 80181, "top_item": "284047", "top_item_nm": "炼乳配料", "monthly_activity": {"2025-05": 10, "2025-06": 10, "2025-07": 7, "2025-08": 1, "2026-02": 1}}, {"uid": "38602353", "order_cnt": 11, "dc": 26764, "pass_rate": 95.92, "ucl_rate": 0.48, "lcl_rate": 3.59, "work_min": 1275, "result_qty": 27777, "top_item": "284047", "top_item_nm": "炼乳配料", "monthly_activity": {"2025-04": 1, "2025-07": 2, "2025-08": 2, "2026-01": 1, "2026-03": 3, "2026-02": 2}}, {"uid": "38613236", "order_cnt": 2, "dc": 20137, "pass_rate": 96.74, "ucl_rate": 0.14, "lcl_rate": 3.12, "work_min": 1046, "result_qty": 20077, "top_item": "284023", "top_item_nm": "炼乳奶油", "monthly_activity": {"2025-06": 1, "2025-11": 1}}, {"uid": "38614095", "order_cnt": 8, "dc": 13511, "pass_rate": 93.23, "ucl_rate": 2.75, "lcl_rate": 4.03, "work_min": 1382, "result_qty": 12993, "top_item": "284047", "top_item_nm": "炼乳配料", "monthly_activity": {"2025-11": 8}}], "hour": [{"hour": 0, "dc": 31666, "pass_rate": 95.57, "ucl_rate": 0.33, "lcl_rate": 4.1}, {"hour": 1, "dc": 104866, "pass_rate": 96.94, "ucl_rate": 0.16, "lcl_rate": 2.9}, {"hour": 2, "dc": 69060, "pass_rate": 96.38, "ucl_rate": 0.25, "lcl_rate": 3.37}, {"hour": 3, "dc": 100491, "pass_rate": 96.55, "ucl_rate": 0.18, "lcl_rate": 3.27}, {"hour": 4, "dc": 85610, "pass_rate": 96.62, "ucl_rate": 0.15, "lcl_rate": 3.23}, {"hour": 5, "dc": 52489, "pass_rate": 96.2, "ucl_rate": 0.24, "lcl_rate": 3.56}, {"hour": 6, "dc": 74268, "pass_rate": 97.22, "ucl_rate": 0.18, "lcl_rate": 2.6}, {"hour": 7, "dc": 19517, "pass_rate": 97.42, "ucl_rate": 0.4, "lcl_rate": 2.17}, {"hour": 8, "dc": 45, "pass_rate": 88.89, "ucl_rate": 0.0, "lcl_rate": 11.11}, {"hour": 9, "dc": 49338, "pass_rate": 95.02, "ucl_rate": 0.46, "lcl_rate": 4.52}, {"hour": 10, "dc": 61700, "pass_rate": 95.44, "ucl_rate": 0.34, "lcl_rate": 4.22}, {"hour": 11, "dc": 22617, "pass_rate": 86.11, "ucl_rate": 6.54, "lcl_rate": 7.35}, {"hour": 12, "dc": 5012, "pass_rate": 75.1, "ucl_rate": 15.24, "lcl_rate": 9.66}, {"hour": 13, "dc": 44882, "pass_rate": 91.67, "ucl_rate": 4.51, "lcl_rate": 3.82}, {"hour": 14, "dc": 63823, "pass_rate": 91.81, "ucl_rate": 4.35, "lcl_rate": 3.84}, {"hour": 15, "dc": 37071, "pass_rate": 91.94, "ucl_rate": 4.32, "lcl_rate": 3.74}, {"hour": 16, "dc": 58701, "pass_rate": 93.63, "ucl_rate": 3.71, "lcl_rate": 2.66}, {"hour": 17, "dc": 18622, "pass_rate": 89.75, "ucl_rate": 5.94, "lcl_rate": 4.3}, {"hour": 18, "dc": 16407, "pass_rate": 90.91, "ucl_rate": 6.42, "lcl_rate": 2.68}, {"hour": 19, "dc": 479, "pass_rate": 94.15, "ucl_rate": 2.51, "lcl_rate": 3.34}, {"hour": 20, "dc": 6365, "pass_rate": 91.44, "ucl_rate": 1.56, "lcl_rate": 7.01}, {"hour": 21, "dc": 96610, "pass_rate": 96.0, "ucl_rate": 0.28, "lcl_rate": 3.72}, {"hour": 22, "dc": 103103, "pass_rate": 96.62, "ucl_rate": 0.31, "lcl_rate": 3.07}, {"hour": 23, "dc": 75611, "pass_rate": 97.01, "ucl_rate": 0.16, "lcl_rate": 2.83}], "dow": [{"dow": 0, "dow_nm": "周一", "dc": 166250, "pass_rate": 94.37, "ucl_rate": 1.66, "lcl_rate": 3.97}, {"dow": 1, "dow_nm": "周二", "dc": 180166, "pass_rate": 95.81, "ucl_rate": 1.04, "lcl_rate": 3.15}, {"dow": 2, "dow_nm": "周三", "dc": 168952, "pass_rate": 95.92, "ucl_rate": 1.08, "lcl_rate": 3.0}, {"dow": 3, "dow_nm": "周四", "dc": 201290, "pass_rate": 94.94, "ucl_rate": 1.65, "lcl_rate": 3.41}, {"dow": 4, "dow_nm": "周五", "dc": 194419, "pass_rate": 94.95, "ucl_rate": 1.63, "lcl_rate": 3.42}, {"dow": 5, "dow_nm": "周六", "dc": 147621, "pass_rate": 95.68, "ucl_rate": 0.64, "lcl_rate": 3.68}, {"dow": 6, "dow_nm": "周日", "dc": 139655, "pass_rate": 95.14, "ucl_rate": 1.04, "lcl_rate": 3.83}], "total_workers": 23, "orders_with_workers": 1045, "total_orders": 1051};
+
+// ── WORKER CHART ──
+(function(){
+  const cv=document.getElementById('cvWorker');
+  const dpr=window.devicePixelRatio||1;
+  const W=cv.parentElement.clientWidth||1000,H=260;
+  cv.width=W*dpr;cv.height=H*dpr;cv.style.width=W+'px';cv.style.height=H+'px';
+  const ctx=cv.getContext('2d');ctx.scale(dpr,dpr);
+  ctx.fillStyle='#F8F9FD';ctx.fillRect(0,0,W,H);
+  const ws=D.workers;
+  const maxDC=Math.max(...ws.map(w=>w.dc));
+  const rates=ws.map(w=>w.pass_rate);
+  const minR=Math.floor(Math.min(...rates))-1, maxR=100;
+  const P={t:16,b:52,l:50,r:50};
+  const pw=W-P.l-P.r,ph=H-P.t-P.b,n=ws.length;
+  const slotW=pw/n,barW=Math.min(slotW*0.55,36);
+  // Y grid (left: dc)
+  [0,0.25,0.5,0.75,1].forEach(r=>{
+    const y=P.t+ph-r*ph;
+    ctx.strokeStyle=r===0?'#94A3B8':'#E2E8F0';ctx.lineWidth=r===0?1.2:0.7;
+    ctx.setLineDash(r===0?[]:[3,3]);
+    ctx.beginPath();ctx.moveTo(P.l,y);ctx.lineTo(P.l+pw,y);ctx.stroke();ctx.setLineDash([]);
+    ctx.fillStyle='#9CA3AF';ctx.font='7.5px ui-monospace,monospace';
+    ctx.textAlign='right';ctx.textBaseline='middle';
+    ctx.fillText(Math.round(maxDC*r/10000)+'万',P.l-3,y);
+  });
+  // Average pass rate line
+  const avgR=95.48;
+  const avgY=P.t+ph-(avgR-minR)/(maxR-minR)*ph;
+  ctx.strokeStyle='#DC2626';ctx.lineWidth=1.2;ctx.setLineDash([5,4]);
+  ctx.beginPath();ctx.moveTo(P.l,avgY);ctx.lineTo(P.l+pw,avgY);ctx.stroke();ctx.setLineDash([]);
+  ctx.fillStyle='#DC2626';ctx.font='bold 8px ui-monospace,monospace';
+  ctx.textAlign='right';ctx.textBaseline='bottom';
+  ctx.fillText('평균 '+avgR+'%',P.l+pw,avgY-2);
+
+  ws.forEach((w,i)=>{
+    const cx=P.l+i*slotW+slotW/2;
+    // DC bar (blue)
+    const bh=Math.max(w.dc/maxDC*ph,2),by=P.t+ph-bh;
+    const g=ctx.createLinearGradient(0,by,0,by+bh);
+    g.addColorStop(0,'#93C5FD');g.addColorStop(1,'#3B82F6');
+    ctx.fillStyle=g;ctx.fillRect(cx-barW/2,by,barW,bh);
+    // Pass rate dot
+    const ry=P.t+ph-(w.pass_rate-minR)/(maxR-minR)*ph;
+    const col=w.pass_rate>=avgR?'#16A34A':'#DC2626';
+    ctx.beginPath();ctx.arc(cx,ry,5,0,Math.PI*2);
+    ctx.fillStyle=col;ctx.fill();ctx.strokeStyle='#fff';ctx.lineWidth=1.5;ctx.stroke();
+    // Pass rate label
+    ctx.fillStyle=col;ctx.font='bold 8px ui-monospace,monospace';
+    ctx.textAlign='center';ctx.textBaseline='bottom';
+    ctx.fillText(w.pass_rate.toFixed(1)+'%',cx,ry-7);
+    // Worker ID (shortened)
+    const wid=w.uid.slice(-4);
+    ctx.fillStyle='#475569';ctx.font='8px ui-monospace,monospace';
+    ctx.textAlign='center';ctx.textBaseline='top';
+    ctx.fillText('…'+wid,cx,P.t+ph+5);
+    ctx.fillStyle='#94A3B8';ctx.font='7px Malgun Gothic,sans-serif';
+    ctx.fillText(w.order_cnt+'건',cx,P.t+ph+16);
+  });
+  // Legend
+  ctx.fillStyle='#3B82F6';ctx.fillRect(P.l,H-P.b+30,10,10);
+  ctx.fillStyle='#475569';ctx.font='9.5px Malgun Gothic,sans-serif';ctx.textAlign='left';ctx.textBaseline='middle';
+  ctx.fillText('계량수',P.l+13,H-P.b+35);
+  ctx.beginPath();ctx.arc(P.l+78,H-P.b+35,5,0,Math.PI*2);
+  ctx.fillStyle='#16A34A';ctx.fill();
+  ctx.fillStyle='#475569';ctx.fillText('합격률(평균이상)',P.l+87,H-P.b+35);
+  ctx.beginPath();ctx.arc(P.l+205,H-P.b+35,5,0,Math.PI*2);
+  ctx.fillStyle='#DC2626';ctx.fill();
+  ctx.fillStyle='#475569';ctx.fillText('합격률(평균미달)',P.l+214,H-P.b+35);
+})();
+
+// ── HOUR CHART ──
+(function(){
+  const cv=document.getElementById('cvHour');
+  const dpr=window.devicePixelRatio||1;
+  const W=cv.parentElement.clientWidth||600,H=220;
+  cv.width=W*dpr;cv.height=H*dpr;cv.style.width=W+'px';cv.style.height=H+'px';
+  const ctx=cv.getContext('2d');ctx.scale(dpr,dpr);
+  ctx.fillStyle='#F8F9FD';ctx.fillRect(0,0,W,H);
+  const hrs=D.hour;
+  const rates=hrs.map(h=>h.pass_rate);
+  const minR=Math.floor(Math.min(...rates)-1),maxR=100;
+  const P={t:12,b:36,l:36,r:10};
+  const pw=W-P.l-P.r,ph=H-P.t-P.b,n=24;
+  const slotW=pw/n,barW=slotW*0.7;
+  // Grid
+  [0,0.5,1].forEach(r=>{
+    const v=minR+(maxR-minR)*r;
+    const y=P.t+ph-r*ph;
+    ctx.strokeStyle=r===0?'#94A3B8':'#E2E8F0';ctx.lineWidth=r===0?1.2:0.7;ctx.setLineDash(r===0?[]:[3,3]);
+    ctx.beginPath();ctx.moveTo(P.l,y);ctx.lineTo(P.l+pw,y);ctx.stroke();ctx.setLineDash([]);
+    ctx.fillStyle='#9CA3AF';ctx.font='7.5px ui-monospace,monospace';ctx.textAlign='right';ctx.textBaseline='middle';
+    ctx.fillText(v.toFixed(0)+'%',P.l-3,y);
+  });
+  // Shade night hours (0-6, 22-23)
+  [[0,6],[22,24]].forEach(([s,e])=>{
+    ctx.fillStyle='rgba(148,163,184,0.08)';
+    ctx.fillRect(P.l+s*slotW,P.t,( e-s)*slotW,ph);
+  });
+  const avgR=rates.reduce((a,b)=>a+b,0)/rates.length;
+  hrs.forEach(h=>{
+    const x=P.l+h.hour*slotW;
+    const bh=Math.max((h.pass_rate-minR)/(maxR-minR)*ph,1),by=P.t+ph-bh;
+    const col=h.pass_rate>=avgR?'#34D399':'#F87171';
+    ctx.fillStyle=col+'99';ctx.fillRect(x+(slotW-barW)/2,by,barW,bh);
+    ctx.fillStyle=col;ctx.fillRect(x+(slotW-barW)/2,by,barW,3);
+  });
+  // X labels
+  [0,3,6,9,12,15,18,21].forEach(h=>{
+    ctx.fillStyle='#64748B';ctx.font='7.5px ui-monospace,monospace';ctx.textAlign='center';ctx.textBaseline='top';
+    ctx.fillText(h+'시',P.l+h*slotW+slotW/2,P.t+ph+4);
+  });
+})();
+
+// ── DOW CHART ──
+(function(){
+  const cv=document.getElementById('cvDow');
+  const dpr=window.devicePixelRatio||1;
+  const W=cv.parentElement.clientWidth||400,H=220;
+  cv.width=W*dpr;cv.height=H*dpr;cv.style.width=W+'px';cv.style.height=H+'px';
+  const ctx=cv.getContext('2d');ctx.scale(dpr,dpr);
+  ctx.fillStyle='#F8F9FD';ctx.fillRect(0,0,W,H);
+  const dows=D.dow;
+  const rates=dows.map(d=>d.pass_rate);
+  const minR=Math.floor(Math.min(...rates)-1),maxR=100;
+  const P={t:12,b:36,l:36,r:10};
+  const pw=W-P.l-P.r,ph=H-P.t-P.b,n=dows.length;
+  const slotW=pw/n,barW=slotW*0.6;
+  [0,0.5,1].forEach(r=>{
+    const v=minR+(maxR-minR)*r;
+    const y=P.t+ph-r*ph;
+    ctx.strokeStyle=r===0?'#94A3B8':'#E2E8F0';ctx.lineWidth=r===0?1.2:0.7;ctx.setLineDash(r===0?[]:[3,3]);
+    ctx.beginPath();ctx.moveTo(P.l,y);ctx.lineTo(P.l+pw,y);ctx.stroke();ctx.setLineDash([]);
+    ctx.fillStyle='#9CA3AF';ctx.font='7.5px ui-monospace,monospace';ctx.textAlign='right';ctx.textBaseline='middle';
+    ctx.fillText(v.toFixed(0)+'%',P.l-3,y);
+  });
+  const avgR=rates.reduce((a,b)=>a+b,0)/rates.length;
+  dows.forEach((d,i)=>{
+    const x=P.l+i*slotW;
+    const bh=Math.max((d.pass_rate-minR)/(maxR-minR)*ph,1),by=P.t+ph-bh;
+    const isWknd=d.dow>=5;
+    const col=isWknd?'#A78BFA':(d.pass_rate>=avgR?'#34D399':'#F87171');
+    ctx.fillStyle=col+'99';ctx.fillRect(x+(slotW-barW)/2,by,barW,bh);
+    ctx.fillStyle=col;ctx.fillRect(x+(slotW-barW)/2,by,barW,3);
+    ctx.fillStyle=col;ctx.font='bold 8.5px ui-monospace,monospace';
+    ctx.textAlign='center';ctx.textBaseline='bottom';
+    ctx.fillText(d.pass_rate.toFixed(1)+'%',x+slotW/2,by-2);
+    ctx.fillStyle=isWknd?'#7C3AED':'#475569';ctx.font='8.5px Malgun Gothic,sans-serif';
+    ctx.textBaseline='top';ctx.fillText(d.dow_nm,x+slotW/2,P.t+ph+5);
+  });
+})();
+
+// ── SCATTER ──
+(function(){
+  const cv=document.getElementById('cvScatter');
+  const dpr=window.devicePixelRatio||1;
+  const W=cv.parentElement.clientWidth||500,H=240;
+  cv.width=W*dpr;cv.height=H*dpr;cv.style.width=W+'px';cv.style.height=H+'px';
+  const ctx=cv.getContext('2d');ctx.scale(dpr,dpr);
+  ctx.fillStyle='#F8F9FD';ctx.fillRect(0,0,W,H);
+  const ws=D.workers;
+  const maxWM=Math.max(...ws.map(w=>w.work_min));
+  const rates=ws.map(w=>w.pass_rate);
+  const minR=Math.floor(Math.min(...rates)-1),maxR=100;
+  const maxOC=Math.max(...ws.map(w=>w.order_cnt));
+  const P={t:12,b:36,l:44,r:16};
+  const pw=W-P.l-P.r,ph=H-P.t-P.b;
+  // Grid
+  [0,0.25,0.5,0.75,1].forEach(r=>{
+    const y=P.t+ph-r*ph,v=minR+(maxR-minR)*r;
+    ctx.strokeStyle=r===0?'#94A3B8':'#E2E8F0';ctx.lineWidth=r===0?1.2:0.7;ctx.setLineDash(r===0?[]:[3,3]);
+    ctx.beginPath();ctx.moveTo(P.l,y);ctx.lineTo(P.l+pw,y);ctx.stroke();ctx.setLineDash([]);
+    ctx.fillStyle='#9CA3AF';ctx.font='7.5px ui-monospace,monospace';ctx.textAlign='right';ctx.textBaseline='middle';
+    ctx.fillText(v.toFixed(0)+'%',P.l-3,y);
+  });
+  const avgR=95.48;
+  const avgY=P.t+ph-(avgR-minR)/(maxR-minR)*ph;
+  ctx.strokeStyle='#DC262640';ctx.lineWidth=1;ctx.setLineDash([4,3]);
+  ctx.beginPath();ctx.moveTo(P.l,avgY);ctx.lineTo(P.l+pw,avgY);ctx.stroke();ctx.setLineDash([]);
+  ws.forEach(w=>{
+    const x=P.l+w.work_min/maxWM*pw;
+    const y=P.t+ph-(w.pass_rate-minR)/(maxR-minR)*ph;
+    const r=4+w.order_cnt/maxOC*10;
+    const col=w.pass_rate>=95.48?'#16A34A':'#DC2626';
+    ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);
+    ctx.fillStyle=col+'55';ctx.fill();ctx.strokeStyle=col;ctx.lineWidth=1.5;ctx.stroke();
+    // Label
+    ctx.fillStyle='#334155';ctx.font='7px ui-monospace,monospace';ctx.textAlign='center';ctx.textBaseline='bottom';
+    ctx.fillText('…'+w.uid.slice(-4),x,y-r-1);
+  });
+  ctx.fillStyle='#64748B';ctx.font='8px Malgun Gothic,sans-serif';ctx.textAlign='center';ctx.textBaseline='top';
+  ctx.fillText('↑ 합격률(%) / 작업시간(분) →',P.l+pw/2,P.t+ph+6);
+})();
+
+// ── UCL/LCL PER WORKER ──
+(function(){
+  const cv=document.getElementById('cvUclLcl');
+  const dpr=window.devicePixelRatio||1;
+  const W=cv.parentElement.clientWidth||500,H=240;
+  cv.width=W*dpr;cv.height=H*dpr;cv.style.width=W+'px';cv.style.height=H+'px';
+  const ctx=cv.getContext('2d');ctx.scale(dpr,dpr);
+  ctx.fillStyle='#F8F9FD';ctx.fillRect(0,0,W,H);
+  const ws=D.workers;
+  const maxRate=Math.max(...ws.map(w=>Math.max(w.ucl_rate,w.lcl_rate)))+1;
+  const P={t:12,b:52,l:36,r:10};
+  const pw=W-P.l-P.r,ph=H-P.t-P.b,n=ws.length;
+  const slotW=pw/n,barW=Math.min(slotW*0.35,16);
+  [0,0.25,0.5,0.75,1].forEach(r=>{
+    const y=P.t+ph-r*ph;
+    ctx.strokeStyle=r===0?'#94A3B8':'#E2E8F0';ctx.lineWidth=r===0?1.2:0.7;ctx.setLineDash(r===0?[]:[3,3]);
+    ctx.beginPath();ctx.moveTo(P.l,y);ctx.lineTo(P.l+pw,y);ctx.stroke();ctx.setLineDash([]);
+    ctx.fillStyle='#9CA3AF';ctx.font='7px ui-monospace,monospace';ctx.textAlign='right';ctx.textBaseline='middle';
+    ctx.fillText((maxRate*r).toFixed(1)+'%',P.l-3,y);
+  });
+  ws.forEach((w,i)=>{
+    const cx=P.l+i*slotW+slotW/2;
+    const uH=w.ucl_rate/maxRate*ph,lH=w.lcl_rate/maxRate*ph;
+    ctx.fillStyle='#F87171';ctx.fillRect(cx-barW-1,P.t+ph-uH,barW,uH);
+    ctx.fillStyle='#60A5FA';ctx.fillRect(cx+1,P.t+ph-lH,barW,lH);
+    const wid='…'+w.uid.slice(-4);
+    ctx.fillStyle='#475569';ctx.font='7px ui-monospace,monospace';ctx.textAlign='center';ctx.textBaseline='top';
+    ctx.fillText(wid,cx,P.t+ph+5);
+  });
+  ctx.fillStyle='#F87171';ctx.fillRect(P.l,H-P.b+26,10,10);
+  ctx.fillStyle='#475569';ctx.font='9.5px Malgun Gothic,sans-serif';ctx.textAlign='left';ctx.textBaseline='middle';
+  ctx.fillText('UCL초과(과충전)',P.l+13,H-P.b+31);
+  ctx.fillStyle='#60A5FA';ctx.fillRect(P.l+120,H-P.b+26,10,10);
+  ctx.fillText('LCL초과(부족충전)',P.l+133,H-P.b+31);
+})();
+</script>
+</body>
+</html>
