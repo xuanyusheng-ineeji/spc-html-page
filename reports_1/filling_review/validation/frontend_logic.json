@@ -1,0 +1,53 @@
+{
+  "kind": "Node DOM/Plotly unit harness; not browser rendering",
+  "results": [
+    {
+      "language": "zh",
+      "passed": true,
+      "checks": [
+        "top3 item ranking and order choices",
+        "full order parameter axes",
+        "h10 target/cutoff alignment",
+        "clicked record is new T",
+        "mean/h10/h20 actual alignment",
+        "seven-quantile distribution, no synthetic20",
+        "future perturbation independence",
+        "tail actual shortage",
+        "production gaps",
+        "no-history record",
+        "same-time records",
+        "model changes keep T",
+        "rapid switches",
+        "synchronized zoom/reset",
+        "raw CSV download",
+        "empty orders",
+        "empty filter recovery",
+        "localized labels"
+      ]
+    },
+    {
+      "language": "ko",
+      "passed": true,
+      "checks": [
+        "top3 item ranking and order choices",
+        "full order parameter axes",
+        "h10 target/cutoff alignment",
+        "clicked record is new T",
+        "mean/h10/h20 actual alignment",
+        "seven-quantile distribution, no synthetic20",
+        "future perturbation independence",
+        "tail actual shortage",
+        "production gaps",
+        "no-history record",
+        "same-time records",
+        "model changes keep T",
+        "rapid switches",
+        "synchronized zoom/reset",
+        "raw CSV download",
+        "empty orders",
+        "empty filter recovery",
+        "localized labels"
+      ]
+    }
+  ]
+}

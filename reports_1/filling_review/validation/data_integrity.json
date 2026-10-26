@@ -1,0 +1,34 @@
+{
+  "passed": true,
+  "orders": 145,
+  "items": 3,
+  "raw_rows": 644051,
+  "h1_rows": 577313,
+  "all_variant_horizon_points_checked": 6885756,
+  "full_order_opc_records": 43820,
+  "zero_opc_records_preserved": 864,
+  "zero_weight_records_preserved": 169,
+  "same_time_weight_records_preserved": 39,
+  "actual_source_rows_values_and_times_exact": true,
+  "all_horizons_past_80_valid_and_no_cross_stop": true,
+  "complete_opc_periods_and_carry_in_exact": true,
+  "protected_artifacts_unchanged": true,
+  "browser_rendering_verified": false,
+  "top_items": [
+    {
+      "item": "284023",
+      "orderCount": 58
+    },
+    {
+      "item": "284047",
+      "orderCount": 51
+    },
+    {
+      "item": "284059",
+      "orderCount": 36
+    }
+  ],
+  "clicked_decision_count": 577607,
+  "native_detail_outputs_checked": 27725136,
+  "clicked_point_forecasts_are_at_T": true
+}
