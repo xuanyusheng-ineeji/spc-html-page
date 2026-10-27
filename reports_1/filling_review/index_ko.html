@@ -3,10 +3,10 @@
 <body><main><header><div class="eyebrow">SPC · FILLING REVIEW</div><a id="language" class="language" href="index_ko.html">한국어</a>
 <h1 id="title">每次填充：实际重量与预测重量</h1><p id="subtitle"></p></header>
 <section class="controls panel"><label><span data-t="item">品目</span><select id="item"></select></label><label class="wide"><span data-t="order">订单</span><select id="order"></select></label>
-<label><span data-t="model">模型版本</span><select id="model"></select></label><label><span data-t="horizon">预测项目</span><select id="horizon"><option value="all">h1 / h10 / h20</option><option value="mean">mean20</option></select></label></section>
+<label><span data-t="model">模型版本</span><select id="model"></select></label></section>
 <section id="order-info" class="order-info"></section><section id="metrics" class="metrics"></section>
 <section id="weight-module" class="panel timeline-panel"><div class="section-head"><div><h2 data-t="weights">逐件实际重量与预测重量</h2><p id="weight-note" class="hint"></p></div><div class="buttons"><button id="focus" data-t="focus">聚焦主体重量</button><button id="reset" data-t="reset">恢复完整订单</button></div></div>
-<div class="timeline-scroll"><div class="timeline-plots"><div id="weight-chart" class="weight-chart"></div><div id="error-chart" class="error-chart"></div></div></div></section>
+<div class="timeline-scroll"><div class="timeline-plots"><div id="weight-chart" class="weight-chart"></div></div></div></section>
 <section id="parameter-module" class="panel timeline-panel"><div class="section-head"><div><h2 data-t="parameters">订单全时段：四个实际设备参数</h2><p id="parameter-note" class="hint"></p></div><button id="reset-parameters" data-t="reset">恢复完整订单</button></div><div class="timeline-scroll"><div class="timeline-plots"><div id="parameter-chart" class="parameter-chart"></div></div></div><div id="parameter-summary" class="hint"></div></section>
 <section id="point-review" class="panel point-review"><div class="section-head"><div><h2 data-t="point">点击填充点：查看未来20件</h2><p id="point-info" class="hint"></p></div><div class="buttons"><button id="point-prev" data-t="pointPrev">前一个填充点</button><button id="point-next" data-t="pointNext">后一个填充点</button><button id="back-to-weight" data-t="backWeight">返回重量图</button></div></div>
 <p id="point-status" class="point-status"></p><div class="table-scroll"><table><thead id="point-head"></thead><tbody id="point-body"></tbody></table></div>
