@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>NowAlpha2025 L/S 예측 · 모델 분류 · GOLDEN 유사 사례</title>
+<link rel="stylesheet" href="app/app.css">
+</head>
+<body>
+<header class="top">
+  <div class="brand">
+    <h1>NowAlpha2025 L/S 예측 · 모델 분류 · GOLDEN 유사 사례</h1>
+    <span id="modeBadge" class="mode"></span>
+  </div>
+  <nav class="tabs" role="tablist">
+    <button role="tab" data-tab="search" class="on">검색</button>
+    <button role="tab" data-tab="stats">검색 통계</button>
+    <button role="tab" data-tab="about">안내</button>
+  </nav>
+</header>
+
+<section id="tab-search" class="tab">
+  <div class="toolbar">
+    <label class="f">발표 날짜 <input type="date" id="fDate"></label>
+    <form id="fTimeForm" class="f"><label>발표 시각·query_id <input type="text" id="fTime" placeholder="YYYYMMDDHHMM[_kNN]" maxlength="20" size="17"></label><button type="submit">찾기</button></form>
+    <label class="f">연도 <select id="fYear"><option value="">전체</option><option value="0">2025</option><option value="1">2026</option></select></label>
+    <label class="f">선행시간 <select id="fLead"><option value="">전체</option></select></label>
+    <label class="f">DINOv3 <select id="fD1"><option value="">전체</option><option value="0">LINEAR</option><option value="1">TY</option><option value="2">추론 불가</option></select></label>
+    <label class="f">M0 <select id="fM0"><option value="">전체</option><option value="0">LINEAR</option><option value="1">TY</option><option value="2">추론 불가</option></select></label>
+    <label class="f">두 모델 <select id="fAgree"><option value="">전체</option><option value="1">일치</option><option value="0">불일치</option></select></label>
+    <label class="f">Top-1 참조 <select id="fCat"><option value="">전체</option><option value="0">LINEAR</option><option value="1">TY</option></select></label>
+    <label class="f">HSR 관측 <select id="fObs"><option value="">전체</option><option value="1">있음</option><option value="0">없음</option></select></label>
+    <span class="f grp" id="grpBtns"></span>
+    <button id="fReset" class="ghost" type="button">초기화</button>
+    <span class="count" id="count" aria-live="polite"></span>
+  </div>
+  <div id="msg" class="msg" hidden></div>
+  <div class="work">
+    <aside class="list">
+      <div class="listhead"><button id="prev" type="button" title="이전 프레임 (←)">◀ 이전</button><span id="pos"></span><button id="next" type="button" title="다음 프레임 (→)">다음 ▶</button></div>
+      <div id="vlist" class="vlist" tabindex="0" aria-label="검색 결과 목록"><div id="vspace"></div></div>
+    </aside>
+    <main class="main">
+      <div class="qrow">
+        <figure class="qimg"><img id="qImg" alt="NowAlpha 예측 레이더 영상"><figcaption id="qCap"></figcaption><div id="qMiss" class="miss" hidden>영상을 불러올 수 없습니다</div></figure>
+        <div class="info" id="info"></div>
+      </div>
+      <div class="t5">
+        <div class="t5head"><span class="secno">③</span><b>GOLDEN 과거 유사 사례 Top-5</b><span class="sub">유사 사례 검색 · 32차원 R3_BALANCED · 참조 범주 LINEAR(= LINEAR + SEMI_LINEAR) / TY · 과정당 1프레임 · 사후(retrospective) 검색 · 모델 분류와 무관 · 카드를 누르면 두 영상 비교</span></div>
+        <div class="cards" id="cards"></div>
+      </div>
+    </main>
+  </div>
+</section>
+
+<section id="tab-stats" class="tab" hidden><div class="statwrap" id="stats"></div></section>
+<section id="tab-about" class="tab" hidden><div class="statwrap" id="about"></div></section>
+
+<div id="modal" class="modal" hidden role="dialog" aria-modal="true" aria-labelledby="mTitle">
+  <div class="mbox">
+    <div class="mhead"><b id="mTitle"></b><span class="sp"></span><button id="mPrev" type="button">◀</button><button id="mNext" type="button">▶</button><button id="mClose" type="button" aria-label="닫기">✕ 닫기</button></div>
+    <div class="mbody" id="mBody"></div>
+  </div>
+</div>
+
+<script src="data/index.js"></script>
+<script src="data/golden.js"></script>
+<script src="data/stats.js"></script>
+<script src="app/app.js"></script>
+</body>
+</html>
